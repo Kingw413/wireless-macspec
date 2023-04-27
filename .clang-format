@@ -1,0 +1,25 @@
+---
+Language:     Cpp
+BasedOnStyle: Google
+IndentWidth : 4
+AccessModifierOffset: -2
+AllowShortEnumsOnASingleLine: true
+AlignArrayOfStructures: Right #clang-format 13
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^<.*\.h>'
+    Priority:        1
+    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '^<.*'
+    Priority:        2
+    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '.*'
+    Priority:        3
+    SortPriority:    0
+    CaseSensitive:   false
+IncludeIsMainRegex: '([-_](test|unittest))?$'
+IndentCaseLabels: false

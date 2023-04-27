@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/extensions",
+                "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM/ndn-cxx",
+                "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM",
+                "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM/NFD",
+                "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM/NFD/daemon",
+                "/usr/include/boost/spirit/home/classic",
+                "/home/whd/ndnSIM2.8/ns-3/build"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "linux-clang-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}
