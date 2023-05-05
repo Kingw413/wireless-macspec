@@ -51,6 +51,8 @@ void showPosition(Ptr<Node> node, double deltaTime) {
     Ptr<MobilityModel> mobModel = node->GetObject<MobilityModel>();
     Vector3D pos = mobModel->GetPosition();
     Vector3D speed = mobModel->GetVelocity();
+    cout.precision(3);
+    std::cout.setf(std::ios::fixed);
     std::cout << "Time " << Simulator::Now().GetSeconds() << " Node "
               << nodeName << ": Position(" << pos.x << ", " << pos.y << ", "
               << pos.z << ");   Speed(" << speed.x << ", " << speed.y << ", "
@@ -126,14 +128,14 @@ int main(int argc, char* argv[]) {
     //                                                                 "ReferenceLoss", DoubleValue(40));
 
     Ptr<YansWifiChannel> channel = channelHelper.Create();
-    Ptr<FixedRssLossModel> lossModel = CreateObject<FixedRssLossModel>();
-    lossModel ->SetRss(-20);
-    // // lossModel->SetReference(1, 40);
-    // // lossModel -> SetPathLossExponent(1);
+    Ptr<LogDistancePropagationLossModel> lossModel = CreateObject<LogDistancePropagationLossModel>();
+    // lossModel ->SetRss(-20);
+    lossModel->SetReference(1, 69.00);
+    lossModel -> SetPathLossExponent(1);
     channel -> SetPropagationLossModel(lossModel);
 
-    // phy.Set("TxPowerStart", DoubleValue(60));
-    // phy.Set("TxPowerEnd", DoubleValue(60));
+    phy.Set("TxPowerStart", DoubleValue(0));
+    phy.Set("TxPowerEnd", DoubleValue(0));
 
     phy.SetChannel(channel);
     wifi.SetStandard(WIFI_STANDARD_80211n_5GHZ);
@@ -180,13 +182,13 @@ int main(int argc, char* argv[]) {
 
     //设置AP位置
     Ptr<MobilityModel> mobility_AP = APnode->GetObject<MobilityModel>();
-    mobility_AP->SetPosition(Vector(5, 0, 0));
+    mobility_AP->SetPosition(Vector(1, 0, 0));
 
 
     // ConstantPosition模型
-    Ptr<ConstantPositionMobilityModel> mobility = CreateObject<ConstantPositionMobilityModel>( );
-    mobility->SetPosition(Vector(0, 0, 0));
-    STAnodes[0]->AggregateObject(mobility); 
+    // Ptr<ConstantPositionMobilityModel> mobility = CreateObject<ConstantPositionMobilityModel>( );
+    // mobility->SetPosition(Vector(0, 0, 0));
+    // STAnodes[0]->AggregateObject(mobility); 
 
 
     // ConstantVelocity模型
@@ -196,12 +198,18 @@ int main(int argc, char* argv[]) {
     // STAnodes[0]->AggregateObject(mobility); 
 
     //Waypoint模型
-    // Ptr<WaypointMobilityModel> mobility = CreateObject<WaypointMobilityModel>( );
-    // mobility -> AddWaypoint(Waypoint(Seconds(0.0), Vector(10, -10, 0)));
-    // mobility -> AddWaypoint(Waypoint(Seconds(1.0), Vector(10, 10, 0)));
-    // mobility -> AddWaypoint(Waypoint(Seconds(2.0), Vector(-10, 10, 0)));
+    Ptr<WaypointMobilityModel> mobility = CreateObject<WaypointMobilityModel>( );
+    for(int i=0;i<50;++i){
+        double time = 0+2.001*i;
+        double x = 1-pow(1.0233,i);
+        mobility -> AddWaypoint(Waypoint(Seconds(time), Vector(x, 0, 0)));
+        mobility -> AddWaypoint(Waypoint(Seconds(time+2.0), Vector(x, 0, 0)));
+    }
+    // mobility -> AddWaypoint(Waypoint(Seconds(0.0), Vector(0, 0, 0)));
+    // mobility -> AddWaypoint(Waypoint(Seconds(3.0), Vector(0, 0, 0)));
+    // mobility -> AddWaypoint(Waypoint(Seconds(6.0), Vector(-1.023, 10, 0)));
     // mobility -> AddWaypoint(Waypoint(Seconds(3.0), Vector(-10, -10, 0)));
-    // STAnodes[0] -> AggregateObject(mobility);
+    STAnodes[0] -> AggregateObject(mobility);
 
     /*RandomWlak2d模型(法1)
         Ptr<RandomWalk2dMobilityModel> mobility =
@@ -224,8 +232,8 @@ int main(int argc, char* argv[]) {
         mobility_STA.Install(STAnodes[0]);
     */
 
-    std::cout.precision(2);
-    std::cout.setf(std::ios::fixed);
+    // std::cout.precision(3);
+    // std::cout.setf(std::ios::fixed);
 
     CommandLine cmd;
     cmd.Parse(argc, argv);
@@ -279,7 +287,7 @@ int main(int argc, char* argv[]) {
     //  STAnodes[0] ->GetObject<RandomWalk2dMobilityModel>( )
     //  ->TraceConnectWithoutContext("CourseChange",
     //  MakeCallback(&PrintNodePosition));
-    // Simulator::Schedule(Seconds(0.0), &showPosition, STAnodes[0], double(0.5));
+    Simulator::Schedule(Seconds(0.0), &showPosition, STAnodes[0], double(1.0));
     // Simulator::Schedule(Seconds(0.0), &showPosition, APnode, double(0.5));
     // Simulator::Schedule(Seconds(0.0), &MyRxCallback);
 
@@ -289,7 +297,7 @@ int main(int argc, char* argv[]) {
     cout<<"TxPowerEnd: "<<staPhy -> GetTxPowerEnd()<<endl;
     staPhy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback));
 
-    Simulator::Stop(Seconds(4));
+    Simulator::Stop(Seconds(100));
     Simulator::Run();
     Simulator::Destroy();
     std::cout << "end" << std::endl;
