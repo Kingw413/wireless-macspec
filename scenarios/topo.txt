@@ -7,5 +7,5 @@ p0  china   0   200
 
 link
 # srcNode	dstNode	bandwidth	metric	delay	queue
-c0  r0  100Mbps    1 10ms    1000
-r0  p0  100Mbps    1 10ms    1000
+c0  r0  1000Mbps    1 10ms    1000
+r0  p0  1000Mbps    1 10ms    1000

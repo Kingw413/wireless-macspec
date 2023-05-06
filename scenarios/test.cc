@@ -1,6 +1,3 @@
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-
 #include "annotated-topology-reader-m.hpp"
 #include "generic-link-service-m.hpp"
 #include "ns3/constant-velocity-mobility-model.h"
@@ -31,7 +28,8 @@
 
 NS_LOG_COMPONENT_DEFINE("ndn.WirelessSimulation");
 
-std::ofstream outRx("outRx.log");
+std::ofstream  outRx1("Rx0.log");
+std::ofstream  outRx2("Rx1.log");
 
 namespace ns3 {
     NetDeviceContainer staDevices;
@@ -46,43 +44,57 @@ model->GetPosition ());
  */
 
 //位置回调函数
-void showPosition(Ptr<Node> node, double deltaTime) {
-    string nodeName = Names::FindName(node);
-    Ptr<MobilityModel> mobModel = node->GetObject<MobilityModel>();
-    Vector3D pos = mobModel->GetPosition();
-    Vector3D speed = mobModel->GetVelocity();
+void showPosition(NodeContainer nodes, double deltaTime) {
     cout.precision(3);
     std::cout.setf(std::ios::fixed);
-    std::cout << "Time " << Simulator::Now().GetSeconds() << " Node "
-              << nodeName << ": Position(" << pos.x << ", " << pos.y << ", "
-              << pos.z << ");   Speed(" << speed.x << ", " << speed.y << ", "
-              << speed.z << ")" << std::endl;
-
-    Simulator::Schedule(Seconds(deltaTime), &showPosition, node, deltaTime);
+    for(NodeContainer::Iterator i = nodes.Begin(); i != nodes.End(); ++i){
+        Ptr<Node> node = *i;
+        string nodeName = Names::FindName(node);
+        Ptr<MobilityModel> mobModel = node->GetObject<MobilityModel>();
+        Vector3D pos = mobModel->GetPosition();
+        Vector3D speed = mobModel->GetVelocity();
+        std::cout << "Time " << Simulator::Now().GetSeconds() << " Node "
+                << nodeName << ": Position(" << pos.x << ", " << pos.y << ", "
+                << pos.z << ");   Speed(" << speed.x << ", " << speed.y << ", "
+                << speed.z << ")" << std::endl;
+    }
+    Simulator::Schedule(Seconds(deltaTime), &showPosition, nodes, deltaTime);
 }
 
 
 //接收功率回调函数
-void MyRxCallback(Ptr<const Packet> packet, uint16_t channelFreqMhz, WifiTxVector txVector, MpduInfo aMpdu, SignalNoiseDbm signalNoise, uint16_t staId)
+void MyRxCallback1(Ptr<const Packet> packet, uint16_t channelFreqMhz, WifiTxVector txVector, MpduInfo aMpdu, SignalNoiseDbm signalNoise, uint16_t staId)
 {
     double rssi = signalNoise.signal;
     double noise = signalNoise.noise;
     double snr = rssi - noise;
-    // uint8_t txPower = txVector.GetTxPowerLevel();
-    // int txPower= static_cast<int>(txVector.GetTxPowerLevel());
-    // double txPower = 0.0;
-    // uint8_t txPowerLevel = txVector.GetTxPowerLevel();
-    // std::vector<double> powers = mode.;
-    // if (txPowerLevel < powers.size()) {
-    //     txPower = powers[txPowerLevel];
-    // }
-    outRx.precision(2);
-    outRx.setf(std::ios::fixed);
-    outRx << "Time " << Simulator::Now().GetSeconds() <<"\t"
+    // string logfile = "Rx" + to_string(staId)+".log";
+    // ofstream outRx(logfile, ios::app);
+    outRx1.precision(3); 
+    outRx1.setf(std::ios::fixed);
+    outRx1 << "Time " << Simulator::Now().GetSeconds() <<"\t"
     // <<"Tx Power = "<< txPower << "dBm, "
+    <<"sta"<<staId
     <<" Received packet with RSSI = " << rssi << " dBm, Noise = " << noise << " dBm, SNR = " << snr << " dB" << std::endl;
     //  Simulator::Schedule(Seconds(1.0), &MyRxCallback,  packet,  channelFreqMhz,  txVector,  aMpdu,  signalNoise,  staId);
 }
+
+void MyRxCallback2(Ptr<const Packet> packet, uint16_t channelFreqMhz, WifiTxVector txVector, MpduInfo aMpdu, SignalNoiseDbm signalNoise, uint16_t staId)
+{
+    double rssi = signalNoise.signal;
+    double noise = signalNoise.noise;
+    double snr = rssi - noise;
+    // string logfile = "Rx" + to_string(staId)+".log";
+    // ofstream outRx(logfile, ios::app);
+    outRx2.precision(3); 
+    outRx2.setf(std::ios::fixed);
+    outRx2 << "Time " << Simulator::Now().GetSeconds() <<"\t"
+    // <<"Tx Power = "<< txPower << "dBm, "
+    <<"sta"<<staId
+    <<" Received packet with RSSI = " << rssi << " dBm, Noise = " << noise << " dBm, SNR = " << snr << " dB" << std::endl;
+    //  Simulator::Schedule(Seconds(1.0), &MyRxCallback,  packet,  channelFreqMhz,  txVector,  aMpdu,  signalNoise,  staId);
+}
+
 
 // void MyTimerCallback()
 // {
@@ -103,15 +115,18 @@ int main(int argc, char* argv[]) {
     topologyReader.Read();
     NodeContainer allNodes = topologyReader.GetNodes();
 
-    YansWifiPhyHelper phy;
-    NodeContainer STAnodes;
-    Ptr<Node> APnode = allNodes[0];
+    YansWifiPhyHelper phyHelper;
+    NodeContainer staNodes;
+    Ptr<Node> apNode = allNodes[0];
     WifiHelper wifi;
 
-    STAnodes.Create(1);
-    Names::Add("sta1", STAnodes.Get(0));
-// Names::Add("sta2", STAnodes.Get(1));
-#pragma region 物理层配置
+    staNodes.Create(2);
+    Names::Add("sta1", staNodes.Get(0));
+    Names::Add("sta2", staNodes.Get(1));
+    // Names::Add("sta3", staNodes.Get(2));
+    // Names::Add("sta4", staNodes.Get(3));
+
+// #pragma GCC region 物理层配置
     // Config::SetDefault("ns3::YansWifiChannel::PropagationLossModel",StringValue("ns3::FixedRssLossModel"));  // 这个写法无效
 
     //更改模型默认参数
@@ -134,88 +149,91 @@ int main(int argc, char* argv[]) {
     lossModel -> SetPathLossExponent(1);
     channel -> SetPropagationLossModel(lossModel);
 
-    phy.Set("TxPowerStart", DoubleValue(0));
-    phy.Set("TxPowerEnd", DoubleValue(0));
+    phyHelper.Set("TxPowerStart", DoubleValue(0));
+    phyHelper.Set("TxPowerEnd", DoubleValue(0));
 
-    phy.SetChannel(channel);
+    phyHelper.SetChannel(channel);
     wifi.SetStandard(WIFI_STANDARD_80211n_5GHZ);
-    phy.Set("ChannelNumber", UintegerValue(38));
-    phy.Set("ChannelWidth", UintegerValue(40));
-#pragma endregion 物理层配置
+    phyHelper.Set("ChannelNumber", UintegerValue(38));
+    phyHelper.Set("ChannelWidth", UintegerValue(40));
+// #pragma GCC endregion 物理层配置
 
 
-#pragma region RSM配置
+// #pragma GCC region RSM配置
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode",
                                  StringValue("HtMcs7"), "ControlMode",
                                  StringValue("HtMcs7"));
-#pragma endregion RSM配置
+// #pragma GCC endregion RSM配置
 
-#pragma region MAC层配置
+// #pragma GCC region MAC层配置
     WifiMacHelper staMac, apMac;
     Ssid ssid = Ssid("c0-ap");
 
     staMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid),
-                   "VO_MaxAmpduSize", UintegerValue(65535), "BK_MaxAmpduSize",
-                   UintegerValue(65535), "ShortSlotTimeSupported",
-                   BooleanValue(false));
+                //    "VO_MaxAmpduSize", UintegerValue(65535), 
+                //    "BK_MaxAmpduSize", UintegerValue(65535), 
+                   "ShortSlotTimeSupported", BooleanValue(false));
 
     // mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
     apMac.SetType(
-        "ns3::ApWifiMac", "Ssid", SsidValue(ssid), "EnableBeaconJitter",
-        BooleanValue(false), "VO_MaxAmpduSize", UintegerValue(65535),
-        "BK_MaxAmpduSize", UintegerValue(65535), "EnableNonErpProtection",
-        BooleanValue(false),  // 此项是必须的，否则无法收到包，原因暂时未知
+        "ns3::ApWifiMac", "Ssid", SsidValue(ssid), 
+        "EnableBeaconJitter", BooleanValue(false), 
+        // "VO_MaxAmpduSize", UintegerValue(65535),
+        // "BK_MaxAmpduSize", UintegerValue(65535), 
+        "EnableNonErpProtection", BooleanValue(false),  // 此项是必须的，否则无法收到包，原因暂时未知
         "ShortSlotTimeSupported", BooleanValue(false));
-#pragma endregion MAC层配置
+// #pragma GCC endregion MAC层配置
 
-#pragma region 安装WiFi设备
-    staDevices = wifi.Install(phy, staMac, STAnodes);
-    apDevices = wifi.Install(phy, apMac, APnode); 
-#pragma endregion 安装WiFi设备
+
+// #pragma GCC region 安装WiFi设备
+    staDevices = wifi.Install(phyHelper, staMac, staNodes);
+    apDevices = wifi.Install(phyHelper, apMac, apNode); 
+// #pragma GCC endregion 安装WiFi设备
 
     //设置初始位置
-    // Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>(); 
-    // positionAlloc->Add(Vector(5, 0, 0));
-    // MobilityHelper mobility_STA;
-    // mobility_STA.SetPositionAllocator(positionAlloc);
-    // mobility_STA.Install(APnode);
+    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>(); 
+    positionAlloc->Add(Vector(1, 0, 0));
+    // positionAlloc -> Add(Vector(1,0,0));
+    // positionAlloc ->Add(Vector(0,1,0));
+    // positionAlloc ->Add(Vector(0,-1,0));
+
+    MobilityHelper mobility_STA;
+    mobility_STA.SetPositionAllocator(positionAlloc);
+    mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility_STA.Install(staNodes[1]);
 
     //设置AP位置
-    Ptr<MobilityModel> mobility_AP = APnode->GetObject<MobilityModel>();
-    mobility_AP->SetPosition(Vector(1, 0, 0));
+    Ptr<MobilityModel> mobility_AP = apNode->GetObject<MobilityModel>();
+    mobility_AP->SetPosition(Vector(0, 0, 0));
 
 
     // ConstantPosition模型
     // Ptr<ConstantPositionMobilityModel> mobility = CreateObject<ConstantPositionMobilityModel>( );
     // mobility->SetPosition(Vector(0, 0, 0));
-    // STAnodes[0]->AggregateObject(mobility); 
+    // staNodes[0]->AggregateObject(mobility); 
 
 
     // ConstantVelocity模型
-    // Ptr<ConstantVelocityMobilityModel> mobility = CreateObject<ConstantVelocityMobilityModel>();
-    // mobility->SetPosition(Vector(0, 0, 0));
-    // mobility->SetVelocity(Vector(-2, 0, 0));
-    // STAnodes[0]->AggregateObject(mobility); 
+    Ptr<ConstantVelocityMobilityModel> mobility = CreateObject<ConstantVelocityMobilityModel>();
+    mobility->SetPosition(Vector(-1, 0, 0));
+    mobility->SetVelocity(Vector(-5, 0, 0));
+    staNodes[0]->AggregateObject(mobility); 
 
     //Waypoint模型
-    Ptr<WaypointMobilityModel> mobility = CreateObject<WaypointMobilityModel>( );
-    for(int i=0;i<50;++i){
-        double time = 0+2.001*i;
-        double x = 1-pow(1.0233,i);
-        mobility -> AddWaypoint(Waypoint(Seconds(time), Vector(x, 0, 0)));
-        mobility -> AddWaypoint(Waypoint(Seconds(time+2.0), Vector(x, 0, 0)));
-    }
-    // mobility -> AddWaypoint(Waypoint(Seconds(0.0), Vector(0, 0, 0)));
-    // mobility -> AddWaypoint(Waypoint(Seconds(3.0), Vector(0, 0, 0)));
-    // mobility -> AddWaypoint(Waypoint(Seconds(6.0), Vector(-1.023, 10, 0)));
-    // mobility -> AddWaypoint(Waypoint(Seconds(3.0), Vector(-10, -10, 0)));
-    STAnodes[0] -> AggregateObject(mobility);
+    // Ptr<WaypointMobilityModel> mobility = CreateObject<WaypointMobilityModel>( );
+    // for(int i=0;i<10;++i){
+    //     double time = 0+2.001*i;
+    //     double x = -pow(1.0233,i);
+    //     mobility -> AddWaypoint(Waypoint(Seconds(time), Vector(x, 0, 0)));
+    //     mobility -> AddWaypoint(Waypoint(Seconds(time+2.0), Vector(x, 0, 0)));
+    // }
+    // staNodes[1] -> AggregateObject(mobility);
 
     /*RandomWlak2d模型(法1)
         Ptr<RandomWalk2dMobilityModel> mobility =
        CreateObject<RandomWalk2dMobilityModel>();
         mobility->SetAttribute("Speed",StringValue("ns3::UniformRandomVariable[Min=2|Max=4]")),
-        STAnodes[0]->AggregateObject(mobility);
+        staNodes[0]->AggregateObject(mobility);
     */
 
     /* RandomWlak2d模型(法2)
@@ -229,11 +247,9 @@ int main(int argc, char* argv[]) {
                             //   "Speed",
     StringValue("ns3::UniformRandomVariable[Min=10|Max=11]")
                               );
-        mobility_STA.Install(STAnodes[0]);
+        mobility_STA.Install(staNodes[0]);
     */
 
-    // std::cout.precision(3);
-    // std::cout.setf(std::ios::fixed);
 
     CommandLine cmd;
     cmd.Parse(argc, argv);
@@ -257,6 +273,7 @@ int main(int argc, char* argv[]) {
 
     ndn::StrategyChoiceHelper::InstallAll("/ustc",
                                           "/localhost/nfd/strategy/best-route");
+
     std::cout << "Install strategy\n";
 
     // Installing Consumer
@@ -264,9 +281,13 @@ int main(int argc, char* argv[]) {
     consumer.SetAttribute("Frequency", DoubleValue(10000.0));
     consumer.SetAttribute("Randomize", StringValue("none"));
     consumer.SetPrefix("/ustc/1");
-    ApplicationContainer consumercontainer = consumer.Install(STAnodes[0]);
-    // consumer.SetPrefix("ustc/2");
-    // consumercontainer.Add(consumer.Install(stanodes[1]));
+    ApplicationContainer consumercontainer = consumer.Install(staNodes[0]);
+    consumer.SetPrefix("/ustc/2");
+    consumercontainer.Add(consumer.Install(staNodes[1]));
+    // consumer.SetPrefix("/ustc/3");
+    // consumercontainer.Add(consumer.Install(staNodes[2]));
+    // consumer.SetPrefix("/ustc/4");
+    // consumercontainer.Add(consumer.Install(staNodes[3]));
     std::cout << "Install consumer\n";
 
     // Installing Producer
@@ -280,24 +301,28 @@ int main(int argc, char* argv[]) {
               << " nodes and producers in " << producercontainer.GetN()
               << " nodes" << std::endl;
 
-    ndn::AppDelayTracer::Install(STAnodes[0], "delay0.log");
-    // ndn::AppDelayTracer::Install(stanodes[1], "delay1.log");
+    ndn::AppDelayTracer::Install(staNodes[0], "delay0.log");
+    ndn::AppDelayTracer::Install(staNodes[1], "delay1.log");
+    // ndn::AppDelayTracer::Install(staNodes[2], "delay2.log");
+    // ndn::AppDelayTracer::Install(staNodes[3], "delay3.log");
+
     ndn::CsTracer::InstallAll("cs.log", MilliSeconds(1000));
 
-    //  STAnodes[0] ->GetObject<RandomWalk2dMobilityModel>( )
+    //  staNodes[0] ->GetObject<RandomWalk2dMobilityModel>( )
     //  ->TraceConnectWithoutContext("CourseChange",
     //  MakeCallback(&PrintNodePosition));
-    Simulator::Schedule(Seconds(0.0), &showPosition, STAnodes[0], double(1.0));
-    // Simulator::Schedule(Seconds(0.0), &showPosition, APnode, double(0.5));
+    Simulator::Schedule(Seconds(0.0), &showPosition, staNodes, double(1.0));
+    // Simulator::Schedule(Seconds(0.0), &showPosition, apNode, double(0.5));
     // Simulator::Schedule(Seconds(0.0), &MyRxCallback);
 
-    Ptr<WifiPhy> staPhy = staDevices.Get(0) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
+    Ptr<WifiPhy> sta1Phy = staDevices.Get(0) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
+    Ptr<WifiPhy> sta2Phy = staDevices.Get(1) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
 
-    cout<<"TxPowerStart: "<<staPhy ->GetTxPowerStart()<<endl;
-    cout<<"TxPowerEnd: "<<staPhy -> GetTxPowerEnd()<<endl;
-    staPhy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback));
 
-    Simulator::Stop(Seconds(100));
+    sta1Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback1));
+    sta2Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback2));
+
+    Simulator::Stop(Seconds(2));
     Simulator::Run();
     Simulator::Destroy();
     std::cout << "end" << std::endl;
@@ -306,3 +331,5 @@ int main(int argc, char* argv[]) {
 }  // namespace ns3
 
 int main(int argc, char* argv[]) { return ns3::main(argc, argv); }
+
+// #pragma GCC diagnostic pop
