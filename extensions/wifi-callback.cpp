@@ -49,7 +49,7 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
 
     NetDeviceContainer apdevices;
     NetDeviceContainer stadevices;
-    for (int i = 0; i < channel->GetNDevices(); i++) {
+    for (uint32_t i = 0; i < channel->GetNDevices(); i++) {
         auto ite_dev = DynamicCast<WifiNetDevice>(channel->GetDevice(i));
         if (ite_dev->GetMac()->GetTypeOfStation() == AP)
             apdevices.Add(ite_dev);
@@ -79,7 +79,7 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
     shared_ptr<::nfd::face::Face> face;
 
     // Create an ndnSIM-specific transport instance
-    for (int i = 0; i < remotedev->GetN(); i++) {
+    for (uint32_t i = 0; i < remotedev->GetN(); i++) {
         ::nfd::face::GenericLinkServiceM::Options opts;
         opts.allowFragmentation = true;
         opts.allowReassembly = true;
@@ -97,7 +97,7 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
 
         ndn->addFace(face);
         NS_LOG_LOGIC("Node " << node->GetId() << ": added Face as face #"
-                             << face->getLocalUri() << " -> "
+                             << face->getLocalUri() << "-> "
                              << face->getRemoteUri());
     }
 

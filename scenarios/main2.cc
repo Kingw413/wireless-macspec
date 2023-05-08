@@ -47,7 +47,7 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
                                  StringValue("HtMcs7"), "ControlMode",
                                  StringValue("HtMcs0"));
     // wifiPhy->SetAttribute ("ChannelNumber", UintegerValue (42));
-    phy.Set("ChannelNumber", UintegerValue(42));
+    phy.Set ("ChannelWidth", UintegerValue (40));
     // wifi.SetRemoteStationManager ("ns3::ArfWifiManager");
     //    Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode",
     //    StringValue ("OfdmRate6Mbps"));
@@ -65,7 +65,8 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
     NetDeviceContainer staDevices;
     staDevices = wifi.Install(phy, mac, STAnodes);
 
-    mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
+    mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid),
+                                "EnableNonErpProtection", BooleanValue (false));
 
     apDevices = wifi.Install(phy, mac, APnode);
 
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
 
     AnnotatedTopologyReaderM topologyReader("", 1);
     topologyReader.SetFileName(
-        "/home/user/ndnsim-2.8/wireless/scenarios/topo.txt");
+        "/home/whd/ndnSIM2.8/wireless-macspec/scenarios/topo.txt");
     topologyReader.Read();
     NodeContainer allNodes = topologyReader.GetNodes();
 
@@ -143,8 +144,8 @@ int main(int argc, char *argv[]) {
 
     // Installing Consumer
     ndn::AppHelper consumer("ns3::ndn::ConsumerCbr");
-    consumer.SetAttribute("Frequency", DoubleValue(1000.0));
-    consumer.SetAttribute("Randomize", StringValue("exponential"));
+    consumer.SetAttribute("Frequency", DoubleValue(10000.0));
+    // consumer.SetAttribute("Randomize", StringValue("exponential"));
     // consumer.SetAttribute("NumberOfContents", UintegerValue(500));
     // consumer.SetAttribute("MaxSeq", IntegerValue(1));
     consumer.SetPrefix("/ustc/1");
@@ -163,18 +164,18 @@ int main(int argc, char *argv[]) {
               << " nodes and producers in " << producercontainer.GetN()
               << " nodes" << std::endl;
 
-    ndn::AppDelayTracer::Install(stanodes[0], "delay0.log");
+    ndn::AppDelayTracer::Install(stanodes[0], "delay0-main.log");
     // ndn::AppDelayTracer::Install(stanodes[1], "delay1.log");
     ndn::CsTracer::InstallAll("cs.log", MilliSeconds(1000));
 
-    Simulator::Stop(Seconds(20));
+    Simulator::Stop(Seconds(3));
 
-    if (1) {
-        phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
-        // pointToPoint.EnablePcapAll ("main");
-        phy.EnablePcap("main", apDevices.Get(0));
-        // csma.EnablePcap ("third", csmaDevices.Get (0), true);
-    }
+    // if (1) {
+    //     phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
+    //     // pointToPoint.EnablePcapAll ("main");
+    //     phy.EnablePcap("main", apDevices.Get(0));
+    //     // csma.EnablePcap ("third", csmaDevices.Get (0), true);
+    // }
 
     // AnimationInterface::SetConstantPosition ( apDevices.Get (0), 10, 30); //
     // AnimationInterface::SetNodeDescription ( apDevices.Get (0), "AP-sta"); //

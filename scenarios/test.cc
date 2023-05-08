@@ -117,12 +117,16 @@ int main(int argc, char* argv[]) {
 
     YansWifiPhyHelper phyHelper;
     NodeContainer staNodes;
-    Ptr<Node> apNode = allNodes[0];
+    Ptr<Node> apNode1 = allNodes[0];
+    Ptr<Node> apNode2 = allNodes[1];
+    NodeContainer apNodes;
+    apNodes.Add(apNode1);
+    apNodes.Add(apNode2);
     WifiHelper wifi;
 
-    staNodes.Create(2);
+    staNodes.Create(1);
     Names::Add("sta1", staNodes.Get(0));
-    Names::Add("sta2", staNodes.Get(1));
+    // Names::Add("sta2", staNodes.Get(1));
     // Names::Add("sta3", staNodes.Get(2));
     // Names::Add("sta4", staNodes.Get(3));
 
@@ -145,7 +149,7 @@ int main(int argc, char* argv[]) {
     Ptr<YansWifiChannel> channel = channelHelper.Create();
     Ptr<LogDistancePropagationLossModel> lossModel = CreateObject<LogDistancePropagationLossModel>();
     // lossModel ->SetRss(-20);
-    lossModel->SetReference(1, 69.00);
+    lossModel->SetReference(1, 60.00);
     lossModel -> SetPathLossExponent(1);
     channel -> SetPropagationLossModel(lossModel);
 
@@ -166,17 +170,19 @@ int main(int argc, char* argv[]) {
 // #pragma GCC endregion RSM配置
 
 // #pragma GCC region MAC层配置
-    WifiMacHelper staMac, apMac;
-    Ssid ssid = Ssid("c0-ap");
+    WifiMacHelper staMac1, apMac1,staMac2, apMac2;
+    Ssid ssid1 = Ssid("c0-ap");
+    Ssid ssid2 = Ssid("c0-ap2");
 
-    staMac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid),
+
+    staMac1.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid1),
                 //    "VO_MaxAmpduSize", UintegerValue(65535), 
                 //    "BK_MaxAmpduSize", UintegerValue(65535), 
                    "ShortSlotTimeSupported", BooleanValue(false));
-
+// staMac1.SetType("ns3::StaWifiMac");
     // mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
-    apMac.SetType(
-        "ns3::ApWifiMac", "Ssid", SsidValue(ssid), 
+    apMac1.SetType(
+        "ns3::ApWifiMac", "Ssid", SsidValue(ssid1), 
         "EnableBeaconJitter", BooleanValue(false), 
         // "VO_MaxAmpduSize", UintegerValue(65535),
         // "BK_MaxAmpduSize", UintegerValue(65535), 
@@ -185,26 +191,40 @@ int main(int argc, char* argv[]) {
 // #pragma GCC endregion MAC层配置
 
 
+    staMac2.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid2),
+                //    "VO_MaxAmpduSize", UintegerValue(65535), 
+                //    "BK_MaxAmpduSize", UintegerValue(65535), 
+                   "ShortSlotTimeSupported", BooleanValue(false));
+    apMac2.SetType(
+        "ns3::ApWifiMac", "Ssid", SsidValue(ssid2), 
+        "EnableBeaconJitter", BooleanValue(false), 
+        // "VO_MaxAmpduSize", UintegerValue(65535),
+        // "BK_MaxAmpduSize", UintegerValue(65535), 
+        "EnableNonErpProtection", BooleanValue(false),  // 此项是必须的，否则无法收到包，原因暂时未知
+        "ShortSlotTimeSupported", BooleanValue(false));
+
 // #pragma GCC region 安装WiFi设备
-    staDevices = wifi.Install(phyHelper, staMac, staNodes);
-    apDevices = wifi.Install(phyHelper, apMac, apNode); 
+    staDevices = wifi.Install(phyHelper, staMac1, staNodes);
+    // staDevices.Add(wifi.Install(phyHelper, staMac2, staNodes));
+    apDevices = wifi.Install(phyHelper, apMac1, apNode1); 
+    apDevices.Add(wifi.Install(phyHelper, apMac2, apNode2));
 // #pragma GCC endregion 安装WiFi设备
 
     //设置初始位置
-    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>(); 
-    positionAlloc->Add(Vector(1, 0, 0));
+    // Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>(); 
+    // positionAlloc->Add(Vector(0, 0, 0));
     // positionAlloc -> Add(Vector(1,0,0));
     // positionAlloc ->Add(Vector(0,1,0));
     // positionAlloc ->Add(Vector(0,-1,0));
 
-    MobilityHelper mobility_STA;
-    mobility_STA.SetPositionAllocator(positionAlloc);
-    mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    mobility_STA.Install(staNodes[1]);
+    // MobilityHelper mobility_STA;
+    // mobility_STA.SetPositionAllocator(positionAlloc);
+    // mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    // mobility_STA.Install(staNodes);
 
     //设置AP位置
-    Ptr<MobilityModel> mobility_AP = apNode->GetObject<MobilityModel>();
-    mobility_AP->SetPosition(Vector(0, 0, 0));
+    // Ptr<MobilityModel> mobility_AP = apNode->GetObject<MobilityModel>();
+    // mobility_AP->SetPosition(Vector(0, 0, 0));
 
 
     // ConstantPosition模型
@@ -215,8 +235,8 @@ int main(int argc, char* argv[]) {
 
     // ConstantVelocity模型
     Ptr<ConstantVelocityMobilityModel> mobility = CreateObject<ConstantVelocityMobilityModel>();
-    mobility->SetPosition(Vector(-1, 0, 0));
-    mobility->SetVelocity(Vector(-5, 0, 0));
+    mobility->SetPosition(Vector(-50, 0, 0));
+    mobility->SetVelocity(Vector(10, 0, 0));
     staNodes[0]->AggregateObject(mobility); 
 
     //Waypoint模型
@@ -282,8 +302,8 @@ int main(int argc, char* argv[]) {
     consumer.SetAttribute("Randomize", StringValue("none"));
     consumer.SetPrefix("/ustc/1");
     ApplicationContainer consumercontainer = consumer.Install(staNodes[0]);
-    consumer.SetPrefix("/ustc/2");
-    consumercontainer.Add(consumer.Install(staNodes[1]));
+    // consumer.SetPrefix("/ustc/2");
+    // consumercontainer.Add(consumer.Install(staNodes[1]));
     // consumer.SetPrefix("/ustc/3");
     // consumercontainer.Add(consumer.Install(staNodes[2]));
     // consumer.SetPrefix("/ustc/4");
@@ -294,7 +314,7 @@ int main(int argc, char* argv[]) {
     ndn::AppHelper producer("ns3::ndn::Producer");
     producer.SetPrefix("/ustc");
     producer.SetAttribute("PayloadSize", UintegerValue(1024));
-    auto producercontainer = producer.Install(allNodes[2]);
+    auto producercontainer = producer.Install("p0");
     std::cout << "Install producer\n";
 
     std::cout << "Install consumers in " << consumercontainer.GetN()
@@ -302,7 +322,7 @@ int main(int argc, char* argv[]) {
               << " nodes" << std::endl;
 
     ndn::AppDelayTracer::Install(staNodes[0], "delay0.log");
-    ndn::AppDelayTracer::Install(staNodes[1], "delay1.log");
+    // ndn::AppDelayTracer::Install(staNodes[1], "delay1.log");
     // ndn::AppDelayTracer::Install(staNodes[2], "delay2.log");
     // ndn::AppDelayTracer::Install(staNodes[3], "delay3.log");
 
@@ -312,17 +332,19 @@ int main(int argc, char* argv[]) {
     //  ->TraceConnectWithoutContext("CourseChange",
     //  MakeCallback(&PrintNodePosition));
     Simulator::Schedule(Seconds(0.0), &showPosition, staNodes, double(1.0));
-    // Simulator::Schedule(Seconds(0.0), &showPosition, apNode, double(0.5));
+    Simulator::Schedule(Seconds(0.0), &showPosition, apNodes, double(1.0));
     // Simulator::Schedule(Seconds(0.0), &MyRxCallback);
 
-    Ptr<WifiPhy> sta1Phy = staDevices.Get(0) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
-    Ptr<WifiPhy> sta2Phy = staDevices.Get(1) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
+    // Ptr<WifiPhy> sta1Phy = staDevices.Get(0) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
+    Ptr<WifiPhy> ap1Phy = apDevices.Get(0) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
+    Ptr<WifiPhy> ap2Phy = apDevices.Get(1) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
 
 
-    sta1Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback1));
-    sta2Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback2));
 
-    Simulator::Stop(Seconds(2));
+    ap1Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback1));
+    ap2Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback2));
+
+    Simulator::Stop(Seconds(10));
     Simulator::Run();
     Simulator::Destroy();
     std::cout << "end" << std::endl;
@@ -331,5 +353,3 @@ int main(int argc, char* argv[]) {
 }  // namespace ns3
 
 int main(int argc, char* argv[]) { return ns3::main(argc, argv); }
-
-// #pragma GCC diagnostic pop

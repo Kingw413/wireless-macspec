@@ -38,7 +38,7 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
     YansWifiChannelHelper channel = YansWifiChannelHelper::Default();
     // channel.AddPropagationLoss ("ns3::RangePropagationLossModel");
 
-    channel.AddPropagationLoss ("ns3::FixedRssLossModel","Rss",DoubleValue (double(-50)));
+    // channel.AddPropagationLoss ("ns3::FixedRssLossModel","Rss",DoubleValue (double(-20)));
 
  /*
     channel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel",
@@ -51,7 +51,7 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
     //wifi.SetRemoteStationManager ("ns3::MinstrelHtWifiManager");
     wifi.SetStandard (WIFI_STANDARD_80211n_5GHZ); 
     //2.4G,5G channeNumer is different
-    phy.Set ("ChannelNumber", UintegerValue (38));
+    // phy.Set ("ChannelNumber", UintegerValue (46));
     phy.Set ("ChannelWidth", UintegerValue (40));
 
 
@@ -59,7 +59,7 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
     // wifi.SetRemoteStationManager("ns3::IdealWifiManager");
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
                             "DataMode", StringValue("HtMcs7"),
-                            "ControlMode", StringValue("HtMcs7")); 
+                            "ControlMode", StringValue("HtMcs0")); 
 
 
     //                         "MinSupportedTxDataRate", UintegerValue(24),
@@ -97,9 +97,9 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
     NetDeviceContainer staDevices;
     mac.SetType ("ns3::StaWifiMac",
                "Ssid", SsidValue (ssid),
-            //    "BE_BlockAckThreshold", UintegerValue (4),
-               "VO_MaxAmpduSize", UintegerValue (65535),
-               "BK_MaxAmpduSize", UintegerValue (65535),
+               "BE_BlockAckThreshold", UintegerValue (4),
+              //  "VO_MaxAmpduSize", UintegerValue (65535),
+              //  "BK_MaxAmpduSize", UintegerValue (65535),
                "ShortSlotTimeSupported", BooleanValue (false));
 
    
@@ -112,16 +112,16 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
   mac.SetType ("ns3::ApWifiMac",
                "Ssid", SsidValue (ssid),
                "EnableBeaconJitter", BooleanValue (false),
-            //   "BE_BlockAckThreshold", UintegerValue (4),
-                "VO_MaxAmpduSize", UintegerValue (65535),
-               "BK_MaxAmpduSize", UintegerValue (65535),
+              "BE_BlockAckThreshold", UintegerValue (4),
+                // "VO_MaxAmpduSize", UintegerValue (65535),
+              //  "BK_MaxAmpduSize", UintegerValue (65535),
                "EnableNonErpProtection", BooleanValue (false),
                "ShortSlotTimeSupported", BooleanValue (false));
   
 
     apDevices = wifi.Install(phy, mac, APnode);
 
-    Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
+    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
     
     Ptr<NetDevice> dev = APnode->GetDevice (1);
       Ptr<WifiNetDevice> wifi_dev = DynamicCast<WifiNetDevice> (dev);
@@ -133,8 +133,8 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
 
 
         // Add the DSSS/CCK rates as the basic rates of our AP
- Ptr<WifiRemoteStationManager> apStationManager =  DynamicCast<WifiNetDevice>(apDevices.Get (0))->GetRemoteStationManager ();
- apStationManager->AddBasicMcs (WifiMode ("HtMcs7"));
+//  Ptr<WifiRemoteStationManager> apStationManager =  DynamicCast<WifiNetDevice>(apDevices.Get (0))->GetRemoteStationManager ();
+//  apStationManager->AddBasicMcs (WifiMode ("HtMcs7"));
 //  apStationManager->AddBasicMode (WifiMode ("HtMcs1"));
 //  apStationManager->AddBasicMode (WifiMode ("DsssRate5_5Mbps"));
 //  apStationManager->AddBasicMode (WifiMode ("DsssRate11Mbps"));
@@ -144,9 +144,9 @@ NodeContainer CreateAP_STA(Ptr<Node> APnode) {
     pos->Add(Vector(1.0, 0.0, 0.0));
     MobilityHelper mobility_STA;
     mobility_STA.SetPositionAllocator(pos);
-    // mobility_STA.SetMobilityModel("ns3::RandomWalk2dMobilityModel", "Bounds",
-    //                               RectangleValue(Rectangle(-50, 0, -50, 50)));
-    mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility_STA.SetMobilityModel("ns3::RandomWalk2dMobilityModel", "Bounds",
+                                  RectangleValue(Rectangle(0, 100, 0, 100)));
+    // mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility_STA.Install(STAnodes);
 
     return STAnodes;
@@ -230,20 +230,20 @@ int main(int argc, char *argv[]) {
               << " nodes and producers in " << producercontainer.GetN()
               << " nodes" << std::endl;
 
-    ndn::AppDelayTracer::Install(stanodes[0], "delay0.log");
+    ndn::AppDelayTracer::Install(stanodes[0], "delay0-main.log");
     //ndn::AppDelayTracer::Install(stanodes[1], "delay1.log");
     ndn::CsTracer::InstallAll("cs.log", MilliSeconds(1000));
 
-    Simulator::Stop(Seconds(10));
+    Simulator::Stop(Seconds(3));
 
-     if (1)
-    {
-      phy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-      //pointToPoint.EnablePcapAll ("main");
-      phy.EnablePcap ("main-sta", apDevices);
-    //   phy.EnablePcap("test-c0-r0", stanodes);
-      //csma.EnablePcap ("third", csmaDevices.Get (0), true);
-    }
+    //  if (1)
+    // {
+    //   phy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
+    //   //pointToPoint.EnablePcapAll ("main");
+    //   phy.EnablePcap ("main-sta", apDevices);
+    // //   phy.EnablePcap("test-c0-r0", stanodes);
+    //   //csma.EnablePcap ("third", csmaDevices.Get (0), true);
+    // }
 
     Simulator::Run();
     Simulator::Destroy();
