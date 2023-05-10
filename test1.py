@@ -1,4 +1,3 @@
-import numpy as np
 import matplotlib.pyplot as plt
 from itertools import zip_longest
 # import pdb
@@ -15,11 +14,11 @@ file4 = '/home/whd/ndnSIM2.8/wireless-macspec/delay3.log'
 
 plt.figure(figsize=(12.0, 10.0))
 plt.rcParams['font.size'] = 16
-files  = [file1]
+files  = [file1, file2]
 colors = ['b','c','m','y']
 lines = ['-.','--',':','dashed']
 i=1
-y_sum = []
+x, y_sum = [],[]
 for file in files:
     x1,y1 = [], []
     aimds = open(file, 'r').readlines()[2:]
@@ -35,15 +34,17 @@ for file in files:
             y1.append(float(datanum * PACKET * 4)/(STEP * 1000 * 1000))
             datanum = 0
             index += STEP
+    x.append(x1)
     y_sum.append(y1)
-    plt.plot(x1, y1, label='sta'+str(i), color = colors[i], ls=lines[i])
+    plt.plot(x1, y1, label='adhoc'+str(i), color = colors[i], ls=lines[i])
     plt.legend()
     i += 1
+x =  x[0]  if  len(x[0])>len(x[1]) else x[1]
 y = [sum(v) for v in zip_longest(*y_sum,fillvalue=0)]
-l = min(len(x1),len(y))
-# plt.plot(x1[:l],y[:l], label ='sum', color = 'r', ls = '-')
-#plt.legend()
+# l = min(len(x),len(y))
+plt.plot(x,y, label ='sum', color = 'r', ls = '-')
+plt.legend()
 plt.xlabel("time (s)")
 plt.ylabel("Data transmission rate (Mbps)")
-plt.savefig('./muchSTA.png')
+plt.savefig('./Adhoc.png')
 plt.show()

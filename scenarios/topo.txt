@@ -1,7 +1,6 @@
 router
 # node	comment	yPos	xPos
-c0  china   0   -50    
-c1  china   0   -150    
+c0  china   0   0    
 r0  china   0   100
 p0  china   0   200
 
@@ -10,4 +9,3 @@ link
 # srcNode	dstNode	bandwidth	metric	delay	queue
 c0  r0  1000Mbps    1 10ms    10000
 r0  p0  1000Mbps    1 10ms    10000
-c1 r0  1000Mbps    1 10ms    10000
