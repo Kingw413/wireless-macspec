@@ -102,7 +102,11 @@
         "locale": "cpp",
         "queue": "cpp",
         "semaphore": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "hash_map": "cpp",
+        "regex": "cpp",
+        "numbers": "cpp",
+        "valarray": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

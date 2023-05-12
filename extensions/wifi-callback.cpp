@@ -49,17 +49,22 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
 
     NetDeviceContainer apdevices;
     NetDeviceContainer stadevices;
+    NetDeviceContainer adhocDevices;
+    NetDeviceContainer vanetDevices;
     for (uint32_t i = 0; i < channel->GetNDevices(); i++) {
         auto ite_dev = DynamicCast<WifiNetDevice>(channel->GetDevice(i));
         if (ite_dev->GetMac()->GetTypeOfStation() == AP)
             apdevices.Add(ite_dev);
         if (ite_dev->GetMac()->GetTypeOfStation() == STA)
             stadevices.Add(ite_dev);
+        if(ite_dev->GetMac()->GetTypeOfStation()== ADHOC_STA ) 
+            adhocDevices.Add(ite_dev);
+        if(ite_dev->GetMac()->GetTypeOfStation()== OCB ) 
+            vanetDevices.Add(ite_dev);
     }
 
     NS_LOG_DEBUG("wifi channel have " << channel->GetNDevices()
-                                      << " device(s), ap = " << apdevices.GetN()
-                                      << ", sta = " << stadevices.GetN());
+                                      << apdevices.GetN()<< "vehicles");
 
     auto type = mac->GetTypeOfStation();
     NetDeviceContainer* remotedev;
@@ -69,6 +74,12 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
         break;
     case STA:
         remotedev = &apdevices;
+        break;
+    case ADHOC_STA:
+        remotedev = &adhocDevices;
+        break;
+    case OCB:
+        remotedev = &vanetDevices;
         break;
     default:
         NS_LOG_ERROR("do not support this wifi mac type, it should be AP/STA");
@@ -87,18 +98,20 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
 
         auto linkService = make_unique<::nfd::face::GenericLinkServiceM>(opts);
 
-        auto transport = make_unique<ndn::WifiNetDeviceTransport>(
-            node, netDevice, constructFaceUri(netDevice),
-            constructFaceUri(remotedev->Get(i)));
+        if(netDevice != remotedev->Get(i)){
+            auto transport = make_unique<ndn::WifiNetDeviceTransport>(
+                node, netDevice, constructFaceUri(netDevice),
+                constructFaceUri(remotedev->Get(i)));
 
-        face = std::make_shared<::nfd::face::Face>(std::move(linkService),
-                                                   std::move(transport));
-        face->setMetric(2-i);
+            face = std::make_shared<::nfd::face::Face>(std::move(linkService),
+                                                    std::move(transport));
+            face->setMetric(2-i);
 
-        ndn->addFace(face);
-        NS_LOG_LOGIC("Node " << node->GetId() << ": added Face as face #"
-                             << face->getLocalUri() << "-> "
-                             << face->getRemoteUri());
+            ndn->addFace(face);
+            NS_LOG_LOGIC("Node " << node->GetId() << ": added Face as face #"
+                                << face->getLocalUri() << "-> "
+                                << face->getRemoteUri());
+        }
     }
 
     return face;

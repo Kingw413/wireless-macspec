@@ -1,8 +1,9 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from itertools import zip_longest
-# import pdb
-# pdb.set_trace()
+
 
 STEP = 0.1
 PACKET = 1024
@@ -15,7 +16,7 @@ file4 = '/home/whd/ndnSIM2.8/wireless-macspec/delay3.log'
 
 plt.figure(figsize=(12.0, 10.0))
 plt.rcParams['font.size'] = 16
-files  = [file1]
+files  = [file1,file2]
 colors = ['b','c','m','y']
 lines = ['-.','--',':','dashed']
 i=1
@@ -41,9 +42,9 @@ for file in files:
     i += 1
 y = [sum(v) for v in zip_longest(*y_sum,fillvalue=0)]
 l = min(len(x1),len(y))
-# plt.plot(x1[:l],y[:l], label ='sum', color = 'r', ls = '-')
-#plt.legend()
+plt.plot(x1[:l],y[:l], label ='sum', color = 'r', ls = '-')
+plt.legend()
 plt.xlabel("time (s)")
 plt.ylabel("Data transmission rate (Mbps)")
-plt.savefig('./muchSTA.png')
+plt.savefig('./vanet.png')
 plt.show()
