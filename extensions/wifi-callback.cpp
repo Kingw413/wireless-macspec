@@ -93,7 +93,7 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
 
         face = std::make_shared<::nfd::face::Face>(std::move(linkService),
                                                    std::move(transport));
-        face->setMetric(1);
+        face->setMetric(2-i);
 
         ndn->addFace(face);
         NS_LOG_LOGIC("Node " << node->GetId() << ": added Face as face #"

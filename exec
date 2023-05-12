@@ -1,3 +1,3 @@
 # NS_LOG=YansWifiPhy:YansWifiChannel:WifiMacQueue:PointToPointNetDevice:ndn.NetDeviceTransport:ndn-cxx.nfd.Forwarder:ndn.AppLinkService:WifiNetDevice:WifiMac:WifiHelper:PositionAllocator:RandomDirection2dMobilityModel:ndn.L3Protocol:WIFICB:ndn.StackHelper:ndn.Consumer LD_LIBRARY_PATH=../lib/lib/ ./waf --run main > 1.log 2>&1
 
-NS_LOG=ndn-cxx.nfd.Forwarder:WIFICB LD_LIBRARY_PATH=../lib/lib/ ./waf --run test > test.log 2>&1
+NS_LOG=ndn.WifiNetDeviceTransport:WIFICB LD_LIBRARY_PATH=../lib/lib/ ./waf --run test > test.log 2>&1
