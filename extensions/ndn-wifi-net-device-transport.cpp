@@ -72,8 +72,10 @@ WifiNetDeviceTransport::WifiNetDeviceTransport(
     }
 
     NS_LOG_FUNCTION(
-        this << "Creating an ndnSIM transport instance for netDevice with URI"
-             << this->getLocalUri());
+        this << "Creating an ndnSIM transport instance for netDevice with URI #"
+            // <<this->getFace()->getId()
+            << this->getLocalUri()<<" -> "
+            << this ->getRemoteUri());
 
     NS_ASSERT_MSG(m_netDevice != 0,
                   "NetDeviceFace needs to be assigned a valid NetDevice");
@@ -106,7 +108,7 @@ void WifiNetDeviceTransport::doClose() {
 
 void WifiNetDeviceTransport::doSend(const Block& packet,
                                     const nfd::EndpointId& endpoint) {
-    NS_LOG_FUNCTION(this<< "Sending packet from netDevice with URI"
+    NS_LOG_FUNCTION(this<< "Sending packet"
                          << this->getLocalUri()
                          <<"->"
                          <<this -> getRemoteUri());
@@ -130,9 +132,6 @@ void WifiNetDeviceTransport::doSend(const Block& packet,
 void WifiNetDeviceTransport::receiveFromNetDevice(
     Ptr<NetDevice> device, Ptr<const ns3::Packet> p, uint16_t protocol,
     const Address& from, const Address& to, NetDevice::PacketType packetType) {
-    NS_LOG_FUNCTION("Node: "<<device ->GetNode()->GetId()
-                                                << "Packet: "<<p->GetUid() 
-                                                << from << to << packetType);
 
     // Convert NS3 packet to NFD packet
     Ptr<ns3::Packet> packet = p->Copy();
@@ -141,10 +140,10 @@ void WifiNetDeviceTransport::receiveFromNetDevice(
     packet->RemoveHeader(header);
 
     auto mac_from = Mac48Address::ConvertFrom(from);
-    bool shouldup = (mac_from == remote_addr);
-    NS_LOG_DEBUG(mac_from << " == " << remote_addr << "? it is " << shouldup);
-
+    auto mac_to = Mac48Address::ConvertFrom(to);
+    bool shouldup = (mac_from == remote_addr)&&(mac_to==local_addr);
     if (shouldup) {
+        NS_LOG_DEBUG(mac_from << " == " << remote_addr <<" & "<< mac_to<<" == "<<local_addr <<"? it is " << shouldup);
         this->receive(std::move(header.getBlock()));
     }
 }

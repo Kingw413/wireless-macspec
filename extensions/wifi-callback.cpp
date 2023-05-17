@@ -35,7 +35,6 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
                                                       Ptr<ndn::L3Protocol> ndn,
                                                       Ptr<NetDevice> device) {
     NS_LOG_DEBUG("Creating Wifi Face on node " << node->GetId());
-
     Ptr<WifiNetDevice> netDevice = DynamicCast<WifiNetDevice>(device);
     NS_ASSERT(netDevice != nullptr);
 
@@ -63,8 +62,8 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
             vanetDevices.Add(ite_dev);
     }
 
-    NS_LOG_DEBUG("wifi channel have " << channel->GetNDevices()
-                                      << apdevices.GetN()<< "vehicles");
+    NS_LOG_DEBUG("wifi channel have " 
+                                      << vanetDevices.GetN()<< " vehicles");
 
     auto type = mac->GetTypeOfStation();
     NetDeviceContainer* remotedev;
@@ -105,15 +104,18 @@ shared_ptr<::nfd::face::Face> WifiApStaDeviceCallback(Ptr<Node> node,
 
             face = std::make_shared<::nfd::face::Face>(std::move(linkService),
                                                     std::move(transport));
-            face->setMetric(2-i);
+            face->setMetric(1);
 
             ndn->addFace(face);
-            NS_LOG_LOGIC("Node " << node->GetId() << ": added Face as face #"
+            NS_LOG_LOGIC("Node " << node->GetId() << ": added Face #"
+                                << face->getId()<<", "
                                 << face->getLocalUri() << "-> "
                                 << face->getRemoteUri());
+
+            ndn::FibHelper::AddRoute(node,"/",face,1);
+            NS_LOG_LOGIC("Node "<<node->GetId() <<"added FIB entry: "<<"/"<<face);
         }
     }
-
     return face;
 }
 

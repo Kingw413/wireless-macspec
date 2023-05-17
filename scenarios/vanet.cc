@@ -12,6 +12,8 @@
 
 #include "annotated-topology-reader-m.hpp"
 #include "generic-link-service-m.hpp"
+// #include "global-routing-helper-change.hpp"
+
 #include "ns3/constant-velocity-mobility-model.h"
 #include "ns3/core-module.h"
 #include "ns3/mobility-helper.h"
@@ -19,7 +21,9 @@
 #include "ns3/ndnSIM-module.h"
 #include "ns3/ndnSIM/NFD/daemon/face/face-common.hpp"
 #include "ns3/ndnSIM/apps/ndn-consumer-batches.hpp"
+#include "ns3/ndnSIM/apps/ndn-producer.hpp"
 #include "ns3/ndnSIM/helper/ndn-link-control-helper.hpp"
+#include "ns3/ndnSIM/helper/ndn-global-routing-helper.hpp"
 #include "ns3/ndnSIM/model/ndn-l3-protocol.hpp"
 #include "ns3/ndnSIM/model/ndn-common.hpp"
 #include "ns3/ndnSIM/utils/tracers/ndn-app-delay-tracer.hpp"
@@ -45,7 +49,14 @@ std::ofstream  outRx1("Rx0.log");
 std::ofstream  outRx2("Rx1.log");
 namespace ns3{
 
+// ndn::Face& getFace(Ptr<Node> node)
+// {
+//   // 获取 NDN 进程
+//   Ptr<ndn::L3Protocol> ndn = node->GetObject<ndn::L3Protocol>();
 
+//   // 获取默认 Face
+//   return ndn->;
+// }
 //位置回调函数
 void showPosition(NodeContainer nodes, double deltaTime) {
     cout.precision(3);
@@ -106,7 +117,7 @@ int main (int argc, char *argv[])
   CommandLine cmd (__FILE__);
 
   NodeContainer nodes;
-  nodes.Create (3);
+  nodes.Create (4);
 
   // The below set of helpers will help us to put together the wifi NICs we want
   YansWifiPhyHelper wifiPhy;
@@ -130,91 +141,111 @@ int main (int argc, char *argv[])
   // Tracing
 //   wifiPhy.EnablePcap ("wave-simple-80211p", devices);
 
-  MobilityHelper mobility;
+  MobilityHelper mobilityHelper;
   Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-  positionAlloc->Add (Vector (0.0, 0.0, 0.0));
-  positionAlloc->Add (Vector (5.0, 0.0, 0.0));
-  positionAlloc ->Add(Vector(-5,0,0));
-  mobility.SetPositionAllocator (positionAlloc);
-  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-  mobility.Install (nodes);
+  positionAlloc->Add (Vector (-5.0, 0.0, 0.0));
+  positionAlloc ->Add(Vector(0.0, -10.0, 0.0));
+  positionAlloc ->Add(Vector(10.0, 0.0, 0.0));
+  mobilityHelper.SetPositionAllocator (positionAlloc);
+  mobilityHelper.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  NodeContainer constantPosNodes;
+  constantPosNodes.Add(nodes[0]);
+  constantPosNodes.Add(nodes[2]);
+  constantPosNodes.Add(nodes[3]);
+  mobilityHelper.Install(constantPosNodes);
 
-   // Install NDN stack on all nodes
-    extern shared_ptr<::nfd::Face> WifiApStaDeviceCallback(
-        Ptr<Node> node, Ptr<ndn::L3Protocol> ndn, Ptr<NetDevice> device);
-    ndn::StackHelper ndnHelper;
-    ndnHelper.AddFaceCreateCallback(WifiNetDevice::GetTypeId(),
-                                    MakeCallback(&WifiApStaDeviceCallback));
-    ndnHelper.SetLinkDelayAsFaceMetric();
-    ndnHelper.SetDefaultRoutes(true);
-    ndnHelper.setCsSize(50);
-    ndnHelper.InstallAll();
-    std::cout << "Install stack\n";
-
-    // Routing strategy
-    ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
-    ndnGlobalRoutingHelper.InstallAll();
-    ndnGlobalRoutingHelper.AddOrigin("/ustc", nodes[0]);
-
-    ndnGlobalRoutingHelper.CalculateRoutes();
-    
-    std::cout << "Install routing\n";
-
-    ndn::StrategyChoiceHelper::InstallAll("/ustc",
-                                          "/localhost/nfd/strategy/best-route");
-
-    std::cout << "Install strategy\n";
-
-    // Installing Consumer
-    ndn::AppHelper consumer("ns3::ndn::ConsumerCbr");
-    consumer.SetAttribute("Frequency", DoubleValue(1000.0));
-    consumer.SetAttribute("Randomize", StringValue("none"));
-    consumer.SetPrefix("/ustc/1");
-    ApplicationContainer consumercontainer = consumer.Install(nodes[1]);
-    consumer.SetPrefix("/ustc/2");
-    consumercontainer.Add(consumer.Install(nodes[2]));
-    // consumer.SetPrefix("/ustc/3");
-    // consumercontainer.Add(consumer.Install(staNodes[2]));
-    // consumer.SetPrefix("/ustc/4");
-    // consumercontainer.Add(consumer.Install(staNodes[3]));
-    std::cout << "Install consumer\n";
-
-    // Installing Producer
-    ndn::AppHelper producer("ns3::ndn::Producer");
-    producer.SetPrefix("/ustc");
-    producer.SetAttribute("PayloadSize", UintegerValue(1024));
-    auto producercontainer = producer.Install(nodes[0]);
-    // producer.SetPrefix("/ustc/1");
-    // producercontainer.Add(producer.Install(nodes[2]));
-    std::cout << "Install producer\n";
-
-    std::cout << "Install consumers in " << consumercontainer.GetN()
-              << " nodes and producers in " << producercontainer.GetN()
-              << " nodes" << std::endl;
-
-    ndn::AppDelayTracer::Install(nodes[1], "delay0.log");
-    ndn::AppDelayTracer::Install(nodes[2], "delay1.log");
-    // ndn::AppDelayTracer::Install(staNodes[2], "delay2.log");
-    // ndn::AppDelayTracer::Install(staNodes[3], "delay3.log");
-
-    ndn::CsTracer::InstallAll("cs.log", MilliSeconds(1000));
+  //ConstantVelocity模型 
+  Ptr<ConstantVelocityMobilityModel> mobility = CreateObject<ConstantVelocityMobilityModel>();
+  mobility->SetPosition(Vector(0, 0, 0));
+  mobility->SetVelocity(Vector(0, 5, 0));
+  nodes[1]->AggregateObject(mobility);
 
 
-    Simulator::Schedule(Seconds(0.0), &showPosition, nodes, double(1.0));
+  // Install NDN stack on all nodes
+  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallback(
+      Ptr<Node> node, Ptr<ndn::L3Protocol> ndn, Ptr<NetDevice> device);
+  ndn::StackHelper ndnHelper;
+  ndnHelper.AddFaceCreateCallback(WifiNetDevice::GetTypeId(),
+                                  MakeCallback(&WifiApStaDeviceCallback));
+  // ndnHelper.SetLinkDelayAsFaceMetric();
+  ndnHelper.SetDefaultRoutes(true);
+  
+  ndnHelper.setCsSize(50);
+  ndnHelper.InstallAll();
+  std::cout << "Install stack\n";
 
-    Ptr<WifiPhy> adhoc1Phy = devices.Get(0) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
-    Ptr<WifiPhy> adhoc2Phy = devices.Get(1) -> GetObject<WifiNetDevice>( ) -> GetPhy( );
+  //Routing strategy
+  ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
+  ndnGlobalRoutingHelper.InstallAll();
+  ndnGlobalRoutingHelper.AddOrigin("/ustc", nodes[3]);
+  ndnGlobalRoutingHelper.CalculateRoutes();
+  std::cout << "Install routing\n";
+ 
+  // nodes[1]->get
+  // ndn::FibHelper::AddRoute(nodes[0], "/ustc", ,0);
+  // ndn::FibHelper::AddRoute(nodes[1], "/ustc", nodes[3],0);
+  // ndn::FibHelper::AddRoute(nodes[0], "/ustc", nodes[2],0);
+  // ndn::FibHelper::AddRoute(nodes[2], "/ustc", nodes[3],0);
+  for(uint32_t nodeId = 0; nodeId< nodes.GetN()-1; ++nodeId){
+    ndn::StrategyChoiceHelper::Install(nodes.Get(nodeId), "/", "/localhost/nfd/strategy/lsf/%FD%10");
+  }
 
 
+  // Installing Consumer
+  ndn::AppHelper consumer("ns3::ndn::ConsumerCbr");
+  consumer.SetAttribute("Frequency", DoubleValue(100.0));
+  consumer.SetAttribute("Randomize", StringValue("none"));
+  consumer.SetPrefix("/ustc/1");
+  ApplicationContainer consumercontainer = consumer.Install(nodes[0]);
+  // consumer.SetPrefix("/ustc/2");
+  // consumercontainer.Add(consumer.Install(nodes[2]));
+  // consumer.SetPrefix("/ustc/3");
+  // consumercontainer.Add(consumer.Install(staNodes[2]));
+  // consumer.SetPrefix("/ustc/4");
+  // consumercontainer.Add(consumer.Install(staNodes[3]));
+  std::cout << "Install consumer\n";
 
-    adhoc1Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback1));
-    adhoc2Phy -> TraceConnectWithoutContext("MonitorSnifferRx", MakeCallback (&MyRxCallback2));
+  // Installing Producer
+  ndn::AppHelper producer("ns3::ndn::Producer");
+  producer.SetPrefix("/ustc");
+  producer.SetAttribute("PayloadSize", UintegerValue(1024));
+  auto producercontainer = producer.Install(nodes[3]);
+  // producer.SetPrefix("/ustc/1");
+  // producercontainer.Add(producer.Install(nodes[2]));
+  std::cout << "Install producer\n";
+  std::cout << "Install consumers in " << consumercontainer.GetN()
+            << " nodes and producers in " << producercontainer.GetN()
+            << " nodes" << std::endl;
 
-    Simulator::Stop(Seconds(4));
-    Simulator::Run();
-    Simulator::Destroy();
-    std::cout << "end" << std::endl;
-    return 0;
+  // for(Ptr<Node> node : nodes){
+  //   Ptr<ns3::Application> app = node->GetApplication();
+  //   if(app->GetObject<ns3::ndn::Producer>() != nullptr){
+  //       ndn::StrategyChoiceHelper::Install(node,"/","/localhost/nfd/strategy/lsf/%FD%10");
+  //   }
+  // };
+
+  ndn::AppDelayTracer::Install(nodes[0], "delay0.log");
+  // ndn::AppDelayTracer::Install(nodes[2], "delay1.log");
+  // ndn::AppDelayTracer::Install(staNodes[2], "delay2.log");
+  // ndn::AppDelayTracer::Install(staNodes[3], "delay3.log");
+
+  ndn::CsTracer::InstallAll("cs.log", MilliSeconds(1000));
+
+  // Simulator::Schedule(Seconds(0.0), &showPosition, nodes, double(1.0));
+
+  // Ptr<WifiPhy> adhoc1Phy = devices.Get(0)->GetObject<WifiNetDevice>()->GetPhy();
+  // Ptr<WifiPhy> adhoc2Phy = devices.Get(1)->GetObject<WifiNetDevice>()->GetPhy();
+
+  // adhoc1Phy->TraceConnectWithoutContext("MonitorSnifferRx",
+  //                                       MakeCallback(&MyRxCallback1));
+  // adhoc2Phy->TraceConnectWithoutContext("MonitorSnifferRx",
+  //                                       MakeCallback(&MyRxCallback2));
+
+  Simulator::Stop(Seconds(4));
+  Simulator::Run();
+  Simulator::Destroy();
+  std::cout << "end" << std::endl;
+  return 0;
     }
 }
 

@@ -10,7 +10,8 @@
                 "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM/NFD",
                 "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM/NFD/daemon",
                 "/usr/include/boost/spirit/home/classic",
-                "/home/whd/ndnSIM2.8/ns-3/build"
+                "/home/whd/ndnSIM2.8/ns-3/build",
+                "/home/whd/ndnSIM2.8/ns-3/src/ndnSIM/NFD/daemon/fw"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
