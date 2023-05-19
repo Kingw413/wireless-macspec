@@ -12,7 +12,6 @@
 
 #include "annotated-topology-reader-m.hpp"
 #include "generic-link-service-m.hpp"
-// #include "global-routing-helper-change.hpp"
 
 #include "ns3/constant-velocity-mobility-model.h"
 #include "ns3/core-module.h"
@@ -189,13 +188,13 @@ int main (int argc, char *argv[])
   for(uint32_t nodeId = 0; nodeId< nodes.GetN()-1; ++nodeId){
     ndn::StrategyChoiceHelper::Install(nodes.Get(nodeId), "/", "/localhost/nfd/strategy/lsf/%FD%10");
   }
-
+  ndn::StrategyChoiceHelper::Install(nodes[3],"/","/localhost/nfd/strategy/best-route/%FD%05");
 
   // Installing Consumer
   ndn::AppHelper consumer("ns3::ndn::ConsumerCbr");
   consumer.SetAttribute("Frequency", DoubleValue(100.0));
   consumer.SetAttribute("Randomize", StringValue("none"));
-  consumer.SetPrefix("/ustc/1");
+  consumer.SetPrefix("/ustc");
   ApplicationContainer consumercontainer = consumer.Install(nodes[0]);
   // consumer.SetPrefix("/ustc/2");
   // consumercontainer.Add(consumer.Install(nodes[2]));

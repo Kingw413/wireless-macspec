@@ -4,6 +4,9 @@
 #include "ns3/ndnSIM/NFD/daemon/fw/strategy.hpp"
 #include "ns3/ndnSIM/NFD/daemon/fw/process-nack-traits.hpp"
 #include "ns3/ndnSIM/NFD/daemon/fw/retx-suppression-exponential.hpp"
+#include "ns3/node-container.h"
+#include "ns3/node.h"
+#include "ns3/vector.h"
 
 namespace nfd {
 namespace fw {
@@ -26,6 +29,21 @@ public:
   afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
                    const shared_ptr<pit::Entry>& pitEntry) override;
 
+  void
+  sendPosition();
+  void 
+  initialPosition();
+
+  void 
+  updatePos(const FaceEndpoint& ingress, const Interest& interest);
+
+private:
+  std::vector<std::vector<ns3::Vector3D>> m_posMap;
+  std::vector<std::vector<ns3::Vector3D>> m_volMap;
+  ns3::NodeContainer m_nodes = ns3::NodeContainer::GetGlobal();
+  double m_probtime;
+  uint32_t num;
+
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const time::milliseconds RETX_SUPPRESSION_INITIAL;
   static const time::milliseconds RETX_SUPPRESSION_MAX;
@@ -33,7 +51,7 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   friend ProcessNackTraits<LSF>;
 
-  Forwarder& fw;
+  // Forwarder& fw;
 };
 
 } // namespace fw
