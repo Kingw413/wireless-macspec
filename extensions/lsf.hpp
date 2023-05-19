@@ -7,6 +7,7 @@
 #include "ns3/node-container.h"
 #include "ns3/node.h"
 #include "ns3/vector.h"
+#include <map>
 
 namespace nfd {
 namespace fw {
@@ -29,6 +30,10 @@ public:
   afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
                    const shared_ptr<pit::Entry>& pitEntry) override;
 
+  void 
+  afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
+                           const FaceEndpoint& ingress, const Data& data) override;
+
   void
   sendPosition();
   void 
@@ -37,12 +42,28 @@ public:
   void 
   updatePos(const FaceEndpoint& ingress, const Interest& interest);
 
+  void 
+  updateISR(const FaceEndpoint& ingress,
+                               const Interest& interest,
+                               const shared_ptr<pit::Entry>& pitEntry,
+                               int type);
+
+  const fib::NextHopList& 
+  caculateHopProb(const fib::NextHopList& nexthops);
+
+nfd::fib::NextHopList::const_iterator
+  getBestNextHop(const fib::NextHopList& nexthops,
+									            const FaceEndpoint& ingress,
+                              const Interest& interest,
+                              const shared_ptr<pit::Entry>& pitEntry);
+
 private:
   std::vector<std::vector<ns3::Vector3D>> m_posMap;
   std::vector<std::vector<ns3::Vector3D>> m_volMap;
-  ns3::NodeContainer m_nodes = ns3::NodeContainer::GetGlobal();
+  ns3::NodeContainer m_nodes;
   double m_probtime;
   uint32_t num;
+  std::vector<std::map<std::string, std::vector<int>>> m_isr;
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const time::milliseconds RETX_SUPPRESSION_INITIAL;
