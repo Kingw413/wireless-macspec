@@ -37,7 +37,7 @@ public:
   void
   sendPosition();
   void 
-  initialPosition();
+  initial(uint32_t num);
 
   void 
   updatePos(const FaceEndpoint& ingress, const Interest& interest);

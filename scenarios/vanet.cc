@@ -17,6 +17,7 @@
 #include "ns3/core-module.h"
 #include "ns3/mobility-helper.h"
 #include "ns3/mobility-model.h"
+#include "ns3/ns2-mobility-helper.h"
 #include "ns3/ndnSIM-module.h"
 #include "ns3/ndnSIM/NFD/daemon/face/face-common.hpp"
 #include "ns3/ndnSIM/apps/ndn-consumer-batches.hpp"
@@ -140,24 +141,30 @@ int main (int argc, char *argv[])
   // Tracing
 //   wifiPhy.EnablePcap ("wave-simple-80211p", devices);
 
-  MobilityHelper mobilityHelper;
-  Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-  positionAlloc->Add (Vector (-5.0, 0.0, 0.0));
-  positionAlloc ->Add(Vector(0.0, -10.0, 0.0));
-  positionAlloc ->Add(Vector(10.0, 0.0, 0.0));
-  mobilityHelper.SetPositionAllocator (positionAlloc);
-  mobilityHelper.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-  NodeContainer constantPosNodes;
-  constantPosNodes.Add(nodes[0]);
-  constantPosNodes.Add(nodes[2]);
-  constantPosNodes.Add(nodes[3]);
-  mobilityHelper.Install(constantPosNodes);
+  // MobilityHelper mobilityHelper;
+  // Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
+  // positionAlloc->Add (Vector (0.0, 0.0, 0.0));
+  // positionAlloc ->Add(Vector(10.0, 0.0, 0.0));
+  // positionAlloc ->Add(Vector(20.0, 0.0, 0.0));
+  // positionAlloc ->Add(Vector(30.0, 0, 0));
+  // mobilityHelper.SetPositionAllocator (positionAlloc);
+  // mobilityHelper.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  // mobilityHelper.Install(nodes);
+
+
+  Ns2MobilityHelper ns2Mobiity = Ns2MobilityHelper("/home/whd/ndnSIM2.8/wireless-macspec/extensions/ns2mobility.tcl");
+  ns2Mobiity.Install();
+  // NodeContainer constantPosNodes;
+  // constantPosNodes.Add(nodes[0]);
+  // constantPosNodes.Add(nodes[2]);
+  // constantPosNodes.Add(nodes[3]);
+  // mobilityHelper.Install(constantPosNodes);
 
   //ConstantVelocity模型 
-  Ptr<ConstantVelocityMobilityModel> mobility = CreateObject<ConstantVelocityMobilityModel>();
-  mobility->SetPosition(Vector(0, 0, 0));
-  mobility->SetVelocity(Vector(0, 5, 0));
-  nodes[1]->AggregateObject(mobility);
+  // Ptr<ConstantVelocityMobilityModel> mobility = CreateObject<ConstantVelocityMobilityModel>();
+  // mobility->SetPosition(Vector(0, 0, 0));
+  // mobility->SetVelocity(Vector(0, 5, 0));
+  // nodes[1]->AggregateObject(mobility);
 
 
   // Install NDN stack on all nodes
@@ -186,7 +193,7 @@ int main (int argc, char *argv[])
   // ndn::FibHelper::AddRoute(nodes[0], "/ustc", nodes[2],0);
   // ndn::FibHelper::AddRoute(nodes[2], "/ustc", nodes[3],0);
   for(uint32_t nodeId = 0; nodeId< nodes.GetN()-1; ++nodeId){
-    ndn::StrategyChoiceHelper::Install(nodes.Get(nodeId), "/", "/localhost/nfd/strategy/lsf/%FD%10");
+    ndn::StrategyChoiceHelper::Install(nodes.Get(nodeId), "/", "/localhost/nfd/strategy/lsf/%FD%01");
   }
   ndn::StrategyChoiceHelper::Install(nodes[3],"/","/localhost/nfd/strategy/best-route/%FD%05");
 

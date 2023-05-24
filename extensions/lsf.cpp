@@ -46,13 +46,12 @@ LSF::LSF(Forwarder& forwarder, const Name& name)
 	m_nodes = ns3::NodeContainer::GetGlobal();
 	m_probtime = 0.1;
 	num = m_nodes.GetN();
-	m_isr = std::vector<std::map<std::string, std::vector<int>>>(num);
-	initialPosition();
+	initial(num);
 	ns3::Simulator::Schedule(ns3::Seconds(0.0), &LSF::sendPosition, this);
 }
 
 const Name& LSF::getStrategyName() {
-    static Name strategyName("/localhost/nfd/strategy/lsf/%FD%10");
+    static Name strategyName("/localhost/nfd/strategy/lsf/%FD%01");
     return strategyName;
 }
 
@@ -77,18 +76,9 @@ void LSF::afterReceiveInterest(const FaceEndpoint& ingress,
 		const fib::Entry& fibEntry = this->lookupFib(*pitEntry);
 		const fib::NextHopList& nexthops = fibEntry.getNextHops();
 		auto bestNextHop = getBestNextHop(nexthops, ingress, interest, pitEntry);
-		if (bestNextHop == nexthops.end()) {
-			NFD_LOG_DEBUG(interest << " from=" << ingress << " noNextHop");
-			lp::NackHeader nackHeader;
-			nackHeader.setReason(lp::NackReason::NO_ROUTE);
-			this->sendNack(pitEntry, ingress, nackHeader);
-			this->rejectPendingInterest(pitEntry);
-			return;
-		}
-
 		auto egress = FaceEndpoint(bestNextHop->getFace(), 0);
 		NS_LOG_DEBUG(interest << " from=" << ingress<<" to="<<egress
-												<< " cost=" << bestNextHop->getCost());
+												<< " metric=" << bestNextHop->getFace().getMetric());
 		this->sendInterest(pitEntry, egress, interest);
 		this->updateISR(ingress, interest, pitEntry, 0);
 		return;
@@ -172,25 +162,15 @@ void LSF::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
   this->updateISR(ingress, interest, pitEntry, 1);
 }
 
-void LSF::initialPosition(){
-	std::vector<std::vector<ns3::Vector3D>> posVector(num, std::vector<ns3::Vector3D>(num, ns3::Vector3D(0, 0, 0)));
-	std::vector<std::vector<ns3::Vector3D>> volVector(num, std::vector<ns3::Vector3D>(num, ns3::Vector3D(0, 0, 0)));
-	m_posMap = posVector;
-	m_volMap = volVector;
-}
-
-
 const fib::NextHopList&
 LSF::caculateHopProb(const fib::NextHopList& nexthops){
-	// const fib::NextHopList& nexthops = fibEntry.getNextHops();
-	// auto nextHop = nexthops.begin();
     const auto transport = nexthops.begin()->getFace().getTransport();
     ns3::ndn::WifiNetDeviceTransport* wifiTrans =
         dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
 	ns3::Ptr<ns3::Channel> channel = wifiTrans->GetNetDevice()->GetChannel();
     ns3::Ptr<ns3::Node> localNode = wifiTrans->GetNetDevice()->GetNode();
     ns3::Ptr<ns3::Node> remoteNode;
-	double distance = std::numeric_limits<double>::max();
+	// double distance = std::numeric_limits<double>::max();
 	for(auto hop = nexthops.begin(); hop != nexthops.end(); ++hop){
 		std::string remoteUri = hop->getFace().getRemoteUri().getHost();
 		for(uint32_t deviceId = 0; deviceId < channel->GetNDevices(); ++deviceId){
@@ -198,38 +178,63 @@ LSF::caculateHopProb(const fib::NextHopList& nexthops){
 			std::string uri = boost::lexical_cast<std::string>(ns3::Mac48Address::ConvertFrom(address));
 			if(remoteUri == uri){
 				remoteNode = channel->GetDevice(deviceId)->GetNode();	
-				ns3::Vector3D localPos = m_posMap[remoteNode->GetId()][localNode->GetId()];
+				ns3::Vector3D localPos = m_posMap[localNode->GetId()][localNode->GetId()];
 				ns3::Vector3D remotePos = m_posMap[localNode->GetId()][remoteNode->GetId()];
 				double newDistance = sqrt(std::pow((localPos.x-remotePos.x), 2) + std::pow((localPos.y-remotePos.y), 2));
-				auto nexthop = *hop;
-				nexthop.setCost(newDistance);
+				hop->getFace().setMetric(newDistance);
+				NS_LOG_DEBUG("X"<<remotePos.x<<"Y"<<remotePos.y);
 			}
 		}
+		NS_LOG_DEBUG("#face="<<hop->getFace().getId()<<"metric="<<hop->getFace().getMetric());
 	}
 	return nexthops;
 }
 
 
 nfd::fib::NextHopList::const_iterator 
-LSF::getBestNextHop(const fib::NextHopList& nexthops,
+LSF::getBestNextHop(const fib::NextHopList& nexthoplist,
 									const FaceEndpoint& ingress,
                                		const Interest& interest,
                                		const shared_ptr<pit::Entry>& pitEntry){
 										
-	this->caculateHopProb(nexthops);
-	uint64_t cost =  std::numeric_limits<uint64_t>::max();
+	const fib::NextHopList& nexthops = caculateHopProb(nexthoplist);
+	uint64_t metric_min =  std::numeric_limits<uint64_t>::max();
 	auto besthop = nexthops.begin();
 	for(auto nexthop = nexthops.begin(); nexthop != nexthops.end(); ++nexthop){
 		if(isNextHopEligible(ingress.face, interest,  *nexthop, pitEntry)){
-			if(nexthop->getCost() < cost){
+			if(nexthop->getFace().getMetric() < metric_min){
 				besthop = nexthop;
-				cost = nexthop->getCost();
+				metric_min = nexthop->getFace().getMetric();
 			}
 		}
 	}
+
+	if (besthop == nexthops.end()) {
+		// NFD_LOG_DEBUG(interest << " from=" << ingress << " noNextHop");
+		lp::NackHeader nackHeader;
+		nackHeader.setReason(lp::NackReason::NO_ROUTE);
+		this->sendNack(pitEntry, ingress, nackHeader);
+		this->rejectPendingInterest(pitEntry);
+		NS_FATAL_ERROR(interest << " from=" << ingress << " noNextHop");
+	}
+	
+	NS_LOG_DEBUG("BestNext="<<besthop->getFace().getId()<<"Metric="<<besthop->getFace().getMetric());
+
 	return besthop;
 }
 
+void LSF::initial(uint32_t num){
+	m_isr = std::vector<std::map<std::string, std::vector<int>>>(num);
+	m_posMap = std::vector<std::vector<ns3::Vector3D>>(num, std::vector<ns3::Vector3D>(num, ns3::Vector3D(0, 0, 0)));
+	m_volMap = std::vector<std::vector<ns3::Vector3D>>(num, std::vector<ns3::Vector3D>(num, ns3::Vector3D(0, 0, 0)));
+	for(uint32_t nodeId=0; nodeId<num; ++nodeId){
+		ns3::Ptr<ns3::MobilityModel> mobModel = m_nodes.Get(nodeId)->GetObject<ns3::MobilityModel>();
+		ns3::Vector3D pos = mobModel->GetPosition();
+		ns3::Vector3D speed = mobModel->GetVelocity();
+		m_posMap[nodeId][nodeId] = pos;
+		m_volMap[nodeId][nodeId] = speed;
+	}
+}
 
 void LSF::afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
                            const shared_ptr<pit::Entry>& pitEntry) {
