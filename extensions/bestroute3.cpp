@@ -38,14 +38,16 @@ BestTest::BestTest(Forwarder& forwarder, const Name& name)
 const Name&
 BestTest::getStrategyName()
 {
-  static Name strategyName("/localhost/nfd/strategy/bestTest/%FD%05");
+  static Name strategyName("/localhost/nfd/strategy/bestTest/%FD%01");
   return strategyName;
 }
 
 void
 BestTest::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& interest,
                                          const shared_ptr<pit::Entry>& pitEntry)
-{
+{	
+	if (!isInRegion(ingress.face)) { return ;}
+
   RetxSuppressionResult suppression = m_retxSuppression.decidePerPitEntry(*pitEntry);
   if (suppression == RetxSuppressionResult::SUPPRESS) {
     NFD_LOG_DEBUG(interest << " from=" << ingress << " suppressed");
@@ -54,9 +56,6 @@ BestTest::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& inte
 
   const fib::Entry& fibEntry = this->lookupFib(*pitEntry);
   const fib::NextHopList& nexthops = fibEntry.getNextHops();
-  for(auto hop = nexthops.begin(); hop != nexthops.end(); ++hop){
-    NS_LOG_INFO("prefix: "<<fibEntry.getPrefix()<< ", "<<"fib: "<< hop->getFace().getId());
-  }
   auto it = nexthops.end();
 
   if (suppression == RetxSuppressionResult::NEW) {
@@ -77,7 +76,7 @@ BestTest::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& inte
     }
 
     auto egress = FaceEndpoint(it->getFace(), 0);
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " newPitEntry-to=" << egress);
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
     this->sendInterest(pitEntry, egress, interest);
     return;
   }
@@ -111,6 +110,54 @@ BestTest::afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
                                      const shared_ptr<pit::Entry>& pitEntry)
 {
   this->processNack(ingress.face, nack, pitEntry);
+}
+
+void
+BestTest::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
+                           const FaceEndpoint& ingress, const Data& data)
+{
+	if ( !isInRegion(ingress.face) ) { return ;}
+  NFD_LOG_DEBUG("do Receive Data pitEntry=" << pitEntry->getName()
+                << " in=" << ingress << " data=" << data.getName());
+
+  Interest interest = pitEntry->getInterest();
+  this->beforeSatisfyInterest(pitEntry, ingress, data);
+
+  this->sendDataToAll(pitEntry, ingress, data);
+}
+
+bool
+BestTest::isInRegion(const nfd::face::Face& face) {
+ 	const auto transport = face.getTransport();
+  	ns3::ndn::WifiNetDeviceTransport* wifiTrans =
+      dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+	if (wifiTrans == nullptr) { return true; }
+  	ns3::Ptr<ns3::Node> node = wifiTrans->GetNetDevice()->GetNode();
+  	ns3::Ptr<ns3::MobilityModel> mobModel = node->GetObject<ns3::MobilityModel>();
+  	ns3::Vector3D nodePos = mobModel->GetPosition();
+  	std::string remoteUri = transport->getRemoteUri().getHost();
+  	ns3::Ptr<ns3::Channel> channel = wifiTrans->GetNetDevice()->GetChannel();
+  	for (uint32_t deviceId = 0; deviceId < channel->GetNDevices(); ++deviceId) {
+    	ns3::Address address = channel->GetDevice(deviceId)->GetAddress();
+    	std::string uri = boost::lexical_cast<std::string>(
+        ns3::Mac48Address::ConvertFrom(address));
+    	if (remoteUri != uri) {
+    		continue;
+    	}
+    	ns3::Ptr<ns3::Node> remoteNode = channel->GetDevice(deviceId)->GetNode();
+    	ns3::Ptr<ns3::MobilityModel> mobModel =
+        remoteNode->GetObject<ns3::MobilityModel>();
+    	ns3::Vector3D remotePos = mobModel->GetPosition();
+    	double distance = sqrt(std::pow((nodePos.x - remotePos.x), 2) +
+                           std::pow((nodePos.y - remotePos.y), 2));
+    	if (distance < m_Rth) {
+      // NS_LOG_LOGIC("Face: " << hop.getFace().getId()
+      //                     << ", Node: " << remoteNode->GetId()
+      //                     << ", Distance: " << distance);
+      	return (true);
+    	}
+  	}
+  	return (false);
 }
 
 } // namespace fw

@@ -1,3 +1,21 @@
 # NS_LOG=YansWifiPhy:YansWifiChannel:WifiMacQueue:PointToPointNetDevice:ndn.NetDeviceTransport:ndn-cxx.nfd.Forwarder:ndn.AppLinkService:WifiNetDevice:WifiMac:WifiHelper:PositionAllocator:RandomDirection2dMobilityModel:ndn.L3Protocol:WIFICB:ndn.StackHelper:ndn.Consumer LD_LIBRARY_PATH=../lib/lib/ ./waf --run main > 1.log 2>&1
 
-NS_LOG=ndn-cxx.nfd.LSF LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet > vanet.log 2>&1
+NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood   >results/flood.log 2>&1
+NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs  > results/prfs.log 2>&1
+NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf  > results/lsf.log 2>&1
+python results/test.py 70
+
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood --nodeNum=80 > results/flood.log 2>&1
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs --nodeNum=80 > results/prfs.log 2>&1
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf --nodeNum=80 > results/lsf.log 2>&1
+# python results/test.py 80
+
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood --nodeNum=90 > results/flood.log 2>&1
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs --nodeNum=90 > results/prfs.log 2>&1
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf --nodeNum=90 > results/lsf.log 2>&1
+# python results/test.py 90
+
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood --nodeNum=100 > results/flood.log 2>&1
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs --nodeNum=100 > results/prfs.log 2>&1
+# NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf --nodeNum=100 > results/lsf.log 2>&1
+# python results/test.py 100

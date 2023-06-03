@@ -45,25 +45,40 @@ public:
   void 
   updateISR(const FaceEndpoint& ingress,
                                const Interest& interest,
-                               const shared_ptr<pit::Entry>& pitEntry,
                                int type);
 
-  const fib::NextHopList& 
-  caculateHopProb(const fib::NextHopList& nexthops);
-
-nfd::fib::NextHopList::const_iterator
-  getBestNextHop(const fib::NextHopList& nexthops,
+  std::vector<double>
+  caculateHopProb(const fib::NextHopList& nexthoplist,
 									            const FaceEndpoint& ingress,
                               const Interest& interest,
                               const shared_ptr<pit::Entry>& pitEntry);
 
+  void 
+  probSend(const fib::NextHopList& nexthoplist,
+									const FaceEndpoint& ingress,
+                               		const Interest& interest,
+                               		const shared_ptr<pit::Entry>& pitEntry);
+
+
+int rouletteWheelSelection(const std::vector<double>& probabilities);
+
+int getBestProb(const std::vector<double>& problist);
+
+nfd::fib::NextHopList::const_iterator 
+getBestHop(const fib::NextHopList& nexthops,
+									const FaceEndpoint& ingress,
+                               		const Interest& interest,
+                               		const shared_ptr<pit::Entry>& pitEntry);
 private:
   std::vector<std::vector<ns3::Vector3D>> m_posMap;
   std::vector<std::vector<ns3::Vector3D>> m_volMap;
-  ns3::NodeContainer m_nodes;
+  std::vector<std::map<std::string, std::vector<double>>> m_isr;
+  // std::vector<std::vector<double>> m_distance;
+  std::vector<std::vector<double>> m_prob;
+  double m_Rth;
   double m_probtime;
-  uint32_t num;
-  std::vector<std::map<std::string, std::vector<int>>> m_isr;
+  ns3::NodeContainer m_nodes;
+  uint32_t m_num;
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const time::milliseconds RETX_SUPPRESSION_INITIAL;
