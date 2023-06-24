@@ -41,7 +41,7 @@
 
 #include <iostream>
 #include <random>
-
+#include <cstdlib>
 
 NS_LOG_COMPONENT_DEFINE ("WifiSimpleOcb");
 
@@ -51,10 +51,17 @@ namespace ns3{
 int main (int argc, char *argv[])
 {
   std::string phyMode ("OfdmRate6Mbps");
-
   NodeContainer nodes;
-  uint32_t N = 70;
-  nodes.Create (N);
+  uint32_t N = std::atoi(std::getenv("NODE_NUM"));
+  nodes.Create (N+2);
+  uint32_t consumerId = N;
+  ns3::NodeContainer consumerNode;
+  ns3::NodeContainer appNodes;
+  consumerNode.Add(nodes[consumerId]);
+//   consumerNode.Add(nodes[1]);
+  uint32_t producerId = N+1;
+  appNodes.Add(consumerNode);
+  appNodes.Add(nodes[producerId]);
 
   // The below set of helpers will help us to put together the wifi NICs we want
   YansWifiPhyHelper wifiPhy;
@@ -80,6 +87,23 @@ int main (int argc, char *argv[])
   Ns2MobilityHelper ns2Mobiity = Ns2MobilityHelper("/home/whd/ndnSIM2.8/wireless-macspec/scenarios/manhattan.tcl");
   ns2Mobiity.Install();
 
+    Ptr<ListPositionAllocator> positionAlloc =
+      CreateObject<ListPositionAllocator>();
+  positionAlloc->Add(Vector(0, 0, 0));
+  positionAlloc->Add(Vector(300, 300, 0));
+
+  MobilityHelper mobility;
+  mobility.SetPositionAllocator( "ns3::GridPositionAllocator", 
+      "MinX", DoubleValue(0.0), 
+      "MinY", DoubleValue(0.0), 
+      "DeltaX", DoubleValue(50.0), 
+      "DeltaY", DoubleValue(5.0), 
+      "GridWidth", UintegerValue(20), 
+      "LayoutType", StringValue("RowFirst"));
+  mobility.SetPositionAllocator(positionAlloc);
+  mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+  mobility.Install(appNodes);
+
 
   // Install NDN stack on all nodes
   extern shared_ptr<::nfd::Face> WifiApStaDeviceCallbackOld(
@@ -90,36 +114,24 @@ int main (int argc, char *argv[])
   ndnHelper.SetLinkDelayAsFaceMetric();
   ndnHelper.SetDefaultRoutes(true);
   
-  ndnHelper.setCsSize(50);
+  ndnHelper.setCsSize(20);
   ndnHelper.InstallAll();
   std::cout << "Install stack\n";
  
-//   std::random_device rd;
-//   std::mt19937 gen(rd());
-//   std::uniform_int_distribution<uint32_t> dist(0,N);
-//   uint32_t consumerId = dist(gen);
-//   uint32_t producerId = dist(gen);
-  uint32_t consumerId = 0;
-  uint32_t producerId = 49;
-//   for(uint32_t nodeId = 0; nodeId< nodes.GetN(); ++nodeId){
-//     if(nodeId != producerId)
-//     ndn::StrategyChoiceHelper::Install(nodes.Get(nodeId), "/","/localhost/nfd/strategy/flood/%FD%01");
-//   }
-//   ndn::StrategyChoiceHelper::Install(nodes.Get(producerId),"/","/localhost/nfd/strategy/best-route/%FD%05");
 
   ndn::StrategyChoiceHelper::InstallAll("/","/localhost/nfd/strategy/bestTest/%FD%01");
 
   // Installing Consumer
-  // ndn::AppHelper consumer("ns3::ndn::ConsumerCbr");
-  // consumer.SetAttribute("Frequency", DoubleValue(100.0));
-  // consumer.SetAttribute("Randomize", StringValue("none"));
-  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
-  consumerHelper.SetAttribute("Frequency", StringValue("100"));
-  consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
-  consumerHelper.SetAttribute("q", StringValue("0"));
-  consumerHelper.SetAttribute("s", StringValue("0.7"));
+  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
+  consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
+  consumerHelper.SetAttribute("Randomize", StringValue("none"));
+  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
+  // consumerHelper.SetAttribute("Frequency", StringValue("10"));
+  // consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
+  // consumerHelper.SetAttribute("q", StringValue("0"));
+  // consumerHelper.SetAttribute("s", StringValue("0.7"));
   consumerHelper.SetPrefix("/ustc");
-  ApplicationContainer consumercontainer = consumerHelper.Install(nodes[consumerId]);
+  ApplicationContainer consumercontainer = consumerHelper.Install(consumerNode);
   std::cout << "Install consumer\n";
 
   // Installing Producer
@@ -127,14 +139,7 @@ int main (int argc, char *argv[])
   producer.SetPrefix("/ustc");
   producer.SetAttribute("PayloadSize", UintegerValue(1024));
   auto producercontainer = producer.Install(nodes.Get(producerId));
-  std::cout << "Install producer\n";
-  std::cout << "Install consumers in " << consumercontainer.GetN()
-            << " nodes and producers in " << producercontainer.GetN()
-            << " nodes" << std::endl;
-
-  ndn::AppDelayTracer::Install(nodes.Get(consumerId), "results/delay_flood.log");
-  // ndn::CsTracer::InstallAll("results/cs_flood.log", MilliSeconds(1000));
-
+  ndn::AppDelayTracer::Install(consumerNode, "results/delay_flood.log");
 
   Simulator::Stop(Seconds(10));
   Simulator::Run();
@@ -149,6 +154,4 @@ int main(int argc, char* argv[]) {
     // ns3::CommandLine cmd (__FILE__);
     // cmd.AddValue("nodeNum", "Number of Vehicles", nodeNum);
     // cmd.Parse(argc, argv);
-    // std::cout<<argc<<argv[0]<<"NUM="<<nodeNum<<std::endl;
-    // if (nodeNum < 50) { std::cout<<"NOTE: Number of Vehicles should not less than 50"<<std::endl; return 0;}
     return ns3::main(argc, argv); }

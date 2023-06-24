@@ -41,19 +41,20 @@
 
 #include <iostream>
 #include <random>
-
+#include <cstdlib>
 
 NS_LOG_COMPONENT_DEFINE ("WifiSimpleOcb");
 
 
 namespace ns3{
 
-
 int main (int argc, char *argv[])
 {
   std::string phyMode ("OfdmRate6Mbps");
-
-
+    // int nodeNum;
+    // ns3::CommandLine cmd (__FILE__);
+    // cmd.AddValue("nodeNum", "Number of Vehicles", nodeNum);
+    // cmd.Parse(argc, argv);
   NodeContainer nodes;
   uint32_t N = std::atoi(std::getenv("NODE_NUM"));
   nodes.Create (N+2);
@@ -65,6 +66,7 @@ int main (int argc, char *argv[])
   uint32_t producerId = N+1;
   appNodes.Add(consumerNode);
   appNodes.Add(nodes[producerId]);
+
   // The below set of helpers will help us to put together the wifi NICs we want
   YansWifiPhyHelper wifiPhy;
   YansWifiChannelHelper channelHelper = YansWifiChannelHelper::Default();
@@ -84,13 +86,12 @@ int main (int argc, char *argv[])
   wifi80211p.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
                                       "DataMode",StringValue (phyMode),
                                       "ControlMode",StringValue (phyMode));
+
   NetDeviceContainer devices = wifi80211p.Install (wifiPhy, wifi80211pMac, nodes);
-
-
   Ns2MobilityHelper ns2Mobiity = Ns2MobilityHelper("/home/whd/ndnSIM2.8/wireless-macspec/scenarios/manhattan.tcl");
   ns2Mobiity.Install();
 
-    Ptr<ListPositionAllocator> positionAlloc =
+  Ptr<ListPositionAllocator> positionAlloc =
       CreateObject<ListPositionAllocator>();
   positionAlloc->Add(Vector(0, 0, 0));
   positionAlloc->Add(Vector(300, 300, 0));
@@ -100,59 +101,40 @@ int main (int argc, char *argv[])
   mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
   mobility_STA.Install(appNodes);
 
-
   // Install NDN stack on all nodes
-  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallback(
+  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallbackOld(
       Ptr<Node> node, Ptr<ndn::L3Protocol> ndn, Ptr<NetDevice> device);
   ndn::StackHelper ndnHelper;
   ndnHelper.AddFaceCreateCallback(WifiNetDevice::GetTypeId(),
-                                  MakeCallback(&WifiApStaDeviceCallback));
-  // ndnHelper.SetLinkDelayAsFaceMetric();
+                                  MakeCallback(&WifiApStaDeviceCallbackOld));
+  ndnHelper.SetLinkDelayAsFaceMetric();
   ndnHelper.SetDefaultRoutes(true);
   
   ndnHelper.setCsSize(20);
   ndnHelper.InstallAll();
-  std::cout << "Install stack\n";
  
-  // std::random_device rd;
-  // std::mt19937 gen(rd());
-  // std::uniform_int_distribution<uint32_t> dist(0,N);
-  // uint32_t consumerId = dist(gen);
-  // uint32_t producerId = dist(gen);
+  ndn::StrategyChoiceHelper::InstallAll("/","/localhost/nfd/strategy/CODIE/%FD%01");
 
-  // for(uint32_t nodeId = 0; nodeId< nodes.GetN(); ++nodeId){
-  //   if(nodeId != producerId)
-  //   ndn::StrategyChoiceHelper::Install(nodes.Get(nodeId), "/", "/localhost/nfd/strategy/lsf/%FD%01");
-  // }
-  // ndn::StrategyChoiceHelper::Install(nodes[producerId],"/","/localhost/nfd/strategy/best-route/%FD%05");
-
-  ndn::StrategyChoiceHelper::InstallAll("/", "/localhost/nfd/strategy/lsf/%FD%01");
   // Installing Consumer
   ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
   consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
   consumerHelper.SetAttribute("Randomize", StringValue("none"));
-  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
-  // consumerHelper.SetAttribute("Frequency", StringValue("10"));
-  // consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
-  // consumerHelper.SetAttribute("q", StringValue("0"));
-  // consumerHelper.SetAttribute("s", StringValue("0.7"));
+//   ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
+//   consumerHelper.SetAttribute("Frequency", StringValue("10"));
+//   consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
+//   consumerHelper.SetAttribute("q", StringValue("0"));
+//   consumerHelper.SetAttribute("s", StringValue("0.7"));
   consumerHelper.SetPrefix("/ustc");
   ApplicationContainer consumercontainer = consumerHelper.Install(consumerNode);
-  // std::cout << "Install consumer\n";
+  std::cout << "Install consumer\n";
 
   // Installing Producer
-  ndn::AppHelper producerHelper("ns3::ndn::Producer");
-  producerHelper.SetPrefix("/ustc");
-  producerHelper.SetAttribute("PayloadSize", UintegerValue(1024));
-  auto producercontainer = producerHelper.Install(nodes[producerId]);
-  // std::cout << "Install producer\n";
-  // std::cout << "Install consumers in " << consumercontainer.GetN()
-  //           << " nodes and producers in " << producercontainer.GetN()
-  //           << " nodes" << std::endl;
+  ndn::AppHelper producer("ns3::ndn::Producer");
+  producer.SetPrefix("/ustc");
+  producer.SetAttribute("PayloadSize", UintegerValue(1024));
+  auto producercontainer = producer.Install(nodes.Get(producerId));
 
-  ndn::AppDelayTracer::Install(consumerNode, "results/delay_lsf.log");
-  // ndn::CsTracer::InstallAll("results/cs_lsf.log", MilliSeconds(1000));
-
+  ndn::AppDelayTracer::Install(consumerNode, "results/delay_codie.log");
 
   Simulator::Stop(Seconds(10));
   Simulator::Run();
@@ -162,5 +144,4 @@ int main (int argc, char *argv[])
     }
 }
 
-int main(int argc, char* argv[]) { 
-    return ns3::main(argc, argv); }
+int main(int argc, char* argv[]) { return ns3::main(argc, argv); }

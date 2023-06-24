@@ -4,7 +4,8 @@
 #include "ns3/ndnSIM/NFD/daemon/fw/strategy.hpp"
 #include "ns3/ndnSIM/NFD/daemon/fw/process-nack-traits.hpp"
 #include "ns3/ndnSIM/NFD/daemon/fw/retx-suppression-exponential.hpp"
-
+#include "ns3/node-container.h"
+#include "ns3/node.h"
 namespace nfd {
 namespace fw {
 
@@ -24,15 +25,23 @@ public:
   void 
   afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
                            const FaceEndpoint& ingress, const Data& data) override;
-  void
-  afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
-                   const shared_ptr<pit::Entry>& pitEntry) override;
+  // void
+  // afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
+  //                  const shared_ptr<pit::Entry>& pitEntry) override;
 
   nfd::fib::NextHopList::const_iterator 
   getBestHop(const fib::NextHopList& nexthops,
 									const FaceEndpoint& ingress,
                                		const Interest& interest,
                                		const shared_ptr<pit::Entry>& pitEntry);
+
+  bool
+  isNext(const nfd::face::Face& face, int type);
+
+private: 
+double m_Rth;
+  ns3::NodeContainer m_nodes;
+  uint32_t m_num;
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const time::milliseconds RETX_SUPPRESSION_INITIAL;
@@ -43,8 +52,7 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   Forwarder& fw;
 
-private: 
-double m_Rth;
+
 };
 
 } // namespace fw

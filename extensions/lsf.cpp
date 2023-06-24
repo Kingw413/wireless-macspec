@@ -78,13 +78,13 @@ void LSF::afterReceiveInterest(const FaceEndpoint& ingress,
 
 		const fib::Entry& fibEntry = this->lookupFib(*pitEntry);
 		const fib::NextHopList& nexthops = fibEntry.getNextHops();
-		auto nextHop = getBestHop(nexthops, ingress, interest, pitEntry);
-		auto egress = FaceEndpoint(nextHop->getFace(), 0);
-		NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress);
-		this->sendInterest(pitEntry, egress, interest);
+		// auto nextHop = getBestHop(nexthops, ingress, interest, pitEntry);
+		// auto egress = FaceEndpoint(nextHop->getFace(), 0);
+		// NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress);
+		// this->sendInterest(pitEntry, egress, interest);
 
 		this->updateISR(ingress, interest, 0);
-		// this->probSend(nexthops, ingress, interest, pitEntry);
+		this->probSend(nexthops, ingress, interest, pitEntry);
 	}
 }
 
