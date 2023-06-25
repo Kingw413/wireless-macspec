@@ -78,13 +78,12 @@ void LSF::afterReceiveInterest(const FaceEndpoint& ingress,
 
 		const fib::Entry& fibEntry = this->lookupFib(*pitEntry);
 		const fib::NextHopList& nexthops = fibEntry.getNextHops();
-		// auto nextHop = getBestHop(nexthops, ingress, interest, pitEntry);
-		// auto egress = FaceEndpoint(nextHop->getFace(), 0);
-		// NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress);
-		// this->sendInterest(pitEntry, egress, interest);
-
-		this->updateISR(ingress, interest, 0);
-		this->probSend(nexthops, ingress, interest, pitEntry);
+		int best_hop_index = getBestHop(nexthops, ingress, interest, pitEntry);
+		auto egress = FaceEndpoint(nexthops[best_hop_index].getFace(), 0);
+		NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
+		this->sendInterest(pitEntry, egress, interest);
+		this->updateISR(egress, interest, 0);
+		this->probSend(nexthops, ingress, interest, pitEntry, best_hop_index);
 	}
 }
 
@@ -157,6 +156,24 @@ void LSF::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
   this->sendDataToAll(pitEntry, ingress, data);
 
   this->updateISR(ingress, interest, 1);
+  for(auto a:m_isr) {
+	for(auto it=a.begin();it != a.end();++it) {
+	std::string name=it->first;
+	std::vector<double> isr = it->second;
+	NS_LOG_INFO("name="<<name<<" ,Inte_num="<<isr[0]<<" ,Data_num="<<isr[1]);
+  	}
+  }
+}
+
+void
+LSF::afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
+                               const FaceEndpoint& ingress, const Data& data)
+{
+  NFD_LOG_DEBUG("afterContentStoreHit pitEntry=" << pitEntry->getName()
+                << " in=" << ingress << " data=" << data.getName());
+
+  this->sendData(pitEntry, data, ingress);
+  this->updateISR(ingress, pitEntry->getInterest(), 1);
 }
 
 std::vector<double>
@@ -200,14 +217,14 @@ LSF::caculateHopProb(const fib::NextHopList& nexthoplist,
 				}
 				else { 
 					isr_list[i] = m_isr[remoteNode->GetId()][interest.getName().toUri()][1] / m_isr[remoteNode->GetId()][interest.getName().toUri()][0];
-					// NS_LOG_DEBUG("Caculate ISR="<<isr_list[i]);
-				}
+				}					
+
 				// 判断其是否为Producer，若是则概率置为1
 				for (uint32_t j = 0; j < remoteNode->GetNApplications(); ++j) {
 					ns3::Ptr<ns3::Application> app = remoteNode->GetApplication(j);
 					if (app->GetInstanceTypeId().GetName() == "ns3::ndn::Producer" && newDistance<m_Rth) {
 						prob_list[i] = 1.0;
-						sum_distance -= newDistance;
+						// sum_distance -= newDistance;
 						sum_isr -= isr_list[i];
 					}
 				}
@@ -218,44 +235,53 @@ LSF::caculateHopProb(const fib::NextHopList& nexthoplist,
 				break;
 			}
 		}
+		// NS_LOG_INFO("hop="<<nexthoplist[i].getFace().getId()<<" distance="<<distance_list[i]<<" prob="<<prob_list[i]);
 	}
 	// 计算概率
 	for (int i = 0; i < prob_list.size(); ++i) {
 		double distance = distance_list[i];
-		if(!isNextHopEligible(ingress.face, interest,  nexthoplist[i], pitEntry)) { sum_distance -= distance; continue; }
 		if ( distance >= m_Rth || (prob_list[i]==1.0)) { continue; }
+		if(!isNextHopEligible(ingress.face, interest,  nexthoplist[i], pitEntry)) { sum_distance -= distance; continue; }
 		// prob_list[i] = distance_list[i] / sum_distance;
 		prob_list[i] = 0.5 * (distance_list[i] / sum_distance) + 0.5*(isr_list[i] / sum_isr);
 	}
-	for(int i = 0; i < prob_list.size(); ++i) {NS_LOG_DEBUG("hop="<<nexthoplist[i].getFace().getId()<<" distance="<<distance_list[i]<<" prob="<<prob_list[i]);}
+	for(int i = 0; i < prob_list.size(); ++i) {NS_LOG_DEBUG("hop="<<nexthoplist[i].getFace().getId()<<" distance="<<distance_list[i]<<" isr="<<isr_list[i]<<" prob="<<prob_list[i]);}
 		
 	return prob_list;
 }
 
 
-void
-LSF::probSend(const fib::NextHopList& nexthoplist,
+int
+LSF::getBestHop(const fib::NextHopList& nexthoplist,
 									const FaceEndpoint& ingress,
                                		const Interest& interest,
                                		const shared_ptr<pit::Entry>& pitEntry){
 	std::vector<double> prob_list = caculateHopProb(nexthoplist, ingress, interest, pitEntry);
-	int best_hop_index;
+	int best_hop_index=0;
 	auto it = std::find(prob_list.begin(), prob_list.end(), 1.0);
 	if( it != prob_list.end()){
 		best_hop_index = std::distance(prob_list.begin(), it);
 	}
 	else{
-		// best_hop_index = rouletteWheelSelection(prob_list);
-		best_hop_index = getBestProb(prob_list);
+		double max_prob = 0;
+		for(int i = 0; i<prob_list.size(); ++i) {
+			if (prob_list[i] > max_prob) {
+				max_prob = prob_list[i];
+				best_hop_index = i;
+			}
+		}
 	}
-	auto egress = FaceEndpoint(nexthoplist[best_hop_index].getFace(), 0);
-	NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress<<" prob=" << prob_list[best_hop_index]);
-	this->sendInterest(pitEntry, egress, interest);
+	return best_hop_index;
 }
 
-
-int LSF::rouletteWheelSelection(const std::vector<double>& probabilities) {
-    std::random_device rd;
+void
+LSF::probSend(const fib::NextHopList& nexthoplist,
+						const FaceEndpoint& ingress,
+                        const Interest& interest,
+                        const shared_ptr<pit::Entry>& pitEntry,
+						int best_hop_index) {
+	std::vector<double> probabilities = caculateHopProb(nexthoplist, ingress, interest, pitEntry);
+	std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<double> dist(0.0, 1.0);
 
@@ -276,77 +302,16 @@ int LSF::rouletteWheelSelection(const std::vector<double>& probabilities) {
         if (randomNum <= sum) {
             // 在原始概率分布中查找对应索引
             auto it = std::find(probabilities.begin(), probabilities.end(), sortedProbabilities[i]);
-            return std::distance(probabilities.begin(), it);
+            int idx = std::distance(probabilities.begin(), it);
+			if (idx == best_hop_index) {continue;}
+			auto egress = FaceEndpoint(nexthoplist[idx].getFace(), 0);
+			NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress<<" prob=" << probabilities[idx]);
+			this->sendInterest(pitEntry, egress, interest);
+			this->updateISR(egress, interest, 0);
         }
     }
-
-    // 如果未能选择到任何概率分布，则返回最后一个索引
-    return probabilities.size() - 1;
 }
 
-int LSF::getBestProb(const std::vector<double>& problist) {
-	int inx = 0;
-	double max_prob = 0;
-	for(int i = 0; i<problist.size(); ++i) {
-		if (problist[i] > max_prob) {
-			max_prob = problist[i];
-			inx = i;
-		}
-	}
-	return inx;
-}
-
-nfd::fib::NextHopList::const_iterator 
-LSF::getBestHop(const fib::NextHopList& nexthops,
-									const FaceEndpoint& ingress,
-                               		const Interest& interest,
-                               		const shared_ptr<pit::Entry>& pitEntry){
-    auto nextHop = nexthops.begin();
-    ns3::Ptr<ns3::Node> nextNode;
-    double distance = 0;
-
-    for (auto hop = nexthops.begin(); hop != nexthops.end(); ++hop) {
-		if(!isNextHopEligible(ingress.face, interest,  *hop, pitEntry)){continue;}
-
-        const auto transport = hop->getFace().getTransport();
-        ns3::ndn::WifiNetDeviceTransport* wifiTrans = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
-        if (wifiTrans == nullptr) { return hop; }
-        ns3::Ptr<ns3::Node> node = wifiTrans->GetNetDevice()->GetNode();
-        ns3::Ptr<ns3::MobilityModel> mobModel = node->GetObject<ns3::MobilityModel>();
-        ns3::Vector3D nodePos = mobModel->GetPosition();
-        std::string remoteUri = transport->getRemoteUri().getHost();
-        ns3::Ptr<ns3::Channel> channel = wifiTrans->GetNetDevice()->GetChannel();
-        for (uint32_t deviceId = 0; deviceId < channel->GetNDevices(); ++deviceId) {
-            ns3::Address address = channel->GetDevice(deviceId)->GetAddress();
-            std::string uri = boost::lexical_cast<std::string>(ns3::Mac48Address::ConvertFrom(address));
-            if (remoteUri != uri) {
-                continue;
-            }
-            ns3::Ptr<ns3::Node> remoteNode = channel->GetDevice(deviceId)->GetNode();
-            ns3::Ptr<ns3::MobilityModel> mobModel = remoteNode->GetObject<ns3::MobilityModel>();
-            ns3::Vector3D remotePos = mobModel->GetPosition();
-            double newDistance = sqrt(std::pow((nodePos.x - remotePos.x), 2) + std::pow((nodePos.y - remotePos.y), 2));
-            for (uint32_t i = 0; i < remoteNode->GetNApplications(); ++i) {
-                ns3::Ptr<ns3::Application> app = remoteNode->GetApplication(i);
-                if (app->GetInstanceTypeId().GetName() == "ns3::ndn::Producer" && newDistance<m_Rth) {
-                    // NS_LOG_LOGIC("Arrived in Producer="<<hop->getFace().getId());
-                    return hop;
-                }
-            }
-
-            if (newDistance > distance && newDistance<m_Rth) {
-                distance = newDistance;
-                nextHop = hop;
-                nextNode = remoteNode;
-            }
-            // NS_LOG_LOGIC("Face: " << hop->getFace().getId()
-            //                       << ", Node: " << remoteNode->GetId()
-            //                       << ", Distance: " << newDistance);
-            break;
-        }   
-    }
-    return nextHop;
-}
 
 void LSF::initial(uint32_t num){
 	m_isr = std::vector<std::map<std::string, std::vector<double>>>(num);

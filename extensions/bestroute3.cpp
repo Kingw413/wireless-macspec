@@ -89,19 +89,19 @@ BestTest::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& inte
   if (it != nexthops.end()) {
     auto egress = FaceEndpoint(it->getFace(), 0);
     this->sendInterest(pitEntry, egress, interest);
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " retransmit-unused-to=" << egress);
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " retransmit-unused-to=" << egress);
     return;
   }
 
   // find an eligible upstream that is used earliest
   it = findEligibleNextHopWithEarliestOutRecord(ingress.face, interest, nexthops, pitEntry);
   if (it == nexthops.end()) {
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " retransmitNoNextHop");
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " retransmitNoNextHop");
   }
   else {
     auto egress = FaceEndpoint(it->getFace(), 0);
     this->sendInterest(pitEntry, egress, interest);
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " retransmit-retry-to=" << egress);
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " retransmit-retry-to=" << egress);
   }
 }
 
