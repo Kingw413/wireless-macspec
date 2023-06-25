@@ -6,6 +6,7 @@
 #include "ns3/ndnSIM/NFD/daemon/fw/retx-suppression-exponential.hpp"
 #include "ns3/node-container.h"
 #include "ns3/node.h"
+#include "ns3/vector.h"
 namespace nfd {
 namespace fw {
 
@@ -25,18 +26,23 @@ public:
   void 
   afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
                            const FaceEndpoint& ingress, const Data& data) override;
-  // void
-  // afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
-  //                  const shared_ptr<pit::Entry>& pitEntry) override;
+  void
+  afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
+                   const shared_ptr<pit::Entry>& pitEntry) override;
 
   nfd::fib::NextHopList::const_iterator 
   getBestHop(const fib::NextHopList& nexthops,
-									const FaceEndpoint& ingress,
-                               		const Interest& interest,
-                               		const shared_ptr<pit::Entry>& pitEntry);
+									    const FaceEndpoint& ingress,
+                      const Interest& interest,
+                      const shared_ptr<pit::Entry>& pitEntry,
+                      int road_direction);
 
+  // bool
+  // isNext(const nfd::face::Face& face, int type);
   bool
-  isNext(const nfd::face::Face& face, int type);
+  clarifyDirection(int node, int remote_node);
+  double 
+  caculateDR(ns3::Vector3D nodePos, ns3::Vector3D remotePos, ns3::Vector3D direction);
 
 private: 
 double m_Rth;

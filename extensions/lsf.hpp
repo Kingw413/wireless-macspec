@@ -35,6 +35,9 @@ public:
                            const FaceEndpoint& ingress, const Data& data) override;
 
   void
+  afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
+                                const FaceEndpoint& ingress, const Data& data) override; 
+  void
   sendPosition();
   void 
   initial(uint32_t num);
@@ -53,22 +56,28 @@ public:
                               const Interest& interest,
                               const shared_ptr<pit::Entry>& pitEntry);
 
+  int 
+  getBestHop(const fib::NextHopList& nexthoplist,
+									    const FaceEndpoint& ingress,
+                      const Interest& interest,
+                      const shared_ptr<pit::Entry>& pitEntry);
+
   void 
   probSend(const fib::NextHopList& nexthoplist,
 									const FaceEndpoint& ingress,
-                               		const Interest& interest,
-                               		const shared_ptr<pit::Entry>& pitEntry);
+                  const Interest& interest,
+                  const shared_ptr<pit::Entry>& pitEntry,
+                  int best_hop_index);
 
+// int rouletteWheelSelection(const std::vector<double>& probabilities);
 
-int rouletteWheelSelection(const std::vector<double>& probabilities);
+// int getBestProb(const std::vector<double>& problist);
 
-int getBestProb(const std::vector<double>& problist);
-
-nfd::fib::NextHopList::const_iterator 
-getBestHop(const fib::NextHopList& nexthops,
-									const FaceEndpoint& ingress,
-                               		const Interest& interest,
-                               		const shared_ptr<pit::Entry>& pitEntry);
+// nfd::fib::NextHopList::const_iterator 
+// getBestHop(const fib::NextHopList& nexthops,
+// 									const FaceEndpoint& ingress,
+//                                		const Interest& interest,
+//                                		const shared_ptr<pit::Entry>& pitEntry);
 private:
   std::vector<std::vector<ns3::Vector3D>> m_posMap;
   std::vector<std::vector<ns3::Vector3D>> m_volMap;
