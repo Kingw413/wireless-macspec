@@ -5,6 +5,7 @@
 #include "ns3/mobility-model.h"
 #include "ns3/ndnSIM/NFD/daemon/fw/algorithm.hpp"
 #include "ns3/ndnSIM/model/ndn-net-device-transport.hpp"
+#include "ns3/ndnSIM/model/ndn-l3-protocol.hpp"
 #include "ns3/node.h"
 #include "ns3/node-container.h"
 #include "ns3/ptr.h"
@@ -71,6 +72,12 @@ void PRFS::afterReceiveInterest(const FaceEndpoint& ingress,
             auto egress1 = FaceEndpoint(next_rd->getFace(), 0);
             NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress1);
             this->sendInterest(pitEntry, egress1, interest);
+
+			const auto transport2 = next_rd->getFace().getTransport();
+    		ns3::ndn::WifiNetDeviceTransport* wifiTrans2 = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport2);
+			ns3::Ptr<ns3::Node> consumer = wifiTrans2->GetNetDevice()->GetNode();
+			int next_nodeId = next_rd->getFace().getId()-257 + (consumer->GetId()+257<=next_rd->getFace().getId());
+	    	this->updateHopList(consumer->GetId(),next_nodeId, interest);
         }
         auto next_rrd = getBestHop(nexthops, ingress, interest, pitEntry, false);
         if (next_rrd == nexthops.end()) {NFD_LOG_DEBUG(interest << " from=" << ingress << " noRRDHop");}
@@ -78,6 +85,12 @@ void PRFS::afterReceiveInterest(const FaceEndpoint& ingress,
             auto egress2 = FaceEndpoint(next_rrd->getFace(), 0);
             NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress2);
             this->sendInterest(pitEntry, egress2, interest);
+
+			const auto transport2 = next_rd->getFace().getTransport();
+    		ns3::ndn::WifiNetDeviceTransport* wifiTrans2 = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport2);
+			ns3::Ptr<ns3::Node> consumer = wifiTrans2->GetNetDevice()->GetNode();
+			int next_nodeId = next_rd->getFace().getId()-257 + (consumer->GetId()+257<=next_rd->getFace().getId());
+	    	this->updateHopList(consumer->GetId(),next_nodeId, interest);
         }
 	    return;
     }
@@ -88,23 +101,20 @@ void PRFS::afterReceiveInterest(const FaceEndpoint& ingress,
 
     if (nextHop == nexthops.end()) {
         NFD_LOG_DEBUG(interest << " from=" << ingress << " noNextHop");
-        // lp::NackHeader nackHeader;
-        // nackHeader.setReason(lp::NackReason::NO_ROUTE);
-        // this->sendNack(pitEntry, ingress, nackHeader);
-        // this->rejectPendingInterest(pitEntry);
         return;
     }
 
 	auto egress = FaceEndpoint(nextHop->getFace(), 0);
 	NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress);
 	this->sendInterest(pitEntry, egress, interest);
+
+	int next_nodeId;
+	if (nextHop->getFace().getId()<256+m_nodes.GetN()) {
+		next_nodeId = nextHop->getFace().getId()-257 + (node->GetId()+257<=nextHop->getFace().getId());
+	    this->updateHopList(node->GetId(),next_nodeId, interest);
+	}
+
 	return;
-}
-
-void PRFS::afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
-                           const shared_ptr<pit::Entry>& pitEntry) {
-    this->processNack(ingress.face, nack, pitEntry);
-
 }
 
 void PRFS::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
@@ -118,6 +128,39 @@ void PRFS::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
   this->beforeSatisfyInterest(pitEntry, ingress, data);
 
   this->sendDataToAll(pitEntry, ingress, data);
+	const auto transport =ingress.face.getTransport();
+    ns3::ndn::WifiNetDeviceTransport* wifiTrans =  dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+    if (wifiTrans==nullptr) {
+        for(int i=0; i<m_nodes.GetN();++i){
+            for (uint32_t j = 0; j < m_nodes[i]->GetNApplications(); ++j) {
+                ns3::Ptr<ns3::Application> app = m_nodes[i]->GetApplication(j);
+                if (app->GetInstanceTypeId().GetName() == "ns3::ndn::Producer") {
+					this->getHopCounts(interest, m_nodes[i]);
+				}
+            }
+        }
+    }
+}
+
+void
+PRFS::afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
+                               const FaceEndpoint& ingress, const Data& data)
+{
+  NFD_LOG_DEBUG("afterContentStoreHit pitEntry=" << pitEntry->getName()
+                << " in=" << ingress << " data=" << data.getName());
+
+  this->sendData(pitEntry, data, ingress);
+
+  	const auto transport =ingress.face.getTransport();
+    ns3::ndn::WifiNetDeviceTransport* wifiTrans =  dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+	ns3::Ptr<ns3::Node>  node = wifiTrans->GetNetDevice()->GetNode();
+	this->getHopCounts(pitEntry->getInterest(), node);
+}
+
+void PRFS::afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
+                           const shared_ptr<pit::Entry>& pitEntry) {
+    this->processNack(ingress.face, nack, pitEntry);
+
 }
 
 nfd::fib::NextHopList::const_iterator 
@@ -191,6 +234,51 @@ PRFS::caculateDR(ns3::Vector3D nodePos, ns3::Vector3D remotePos, ns3::Vector3D d
     return dr;
 }
 
+void 
+PRFS::updateHopList(int preId, int curId, const Interest& interest) 
+{   
+    uint32_t nonce = interest.getNonce();
+    ns3::Ptr<ns3::Node> pre_node = m_nodes[preId];
+    ns3::Ptr<ns3::Node> node = m_nodes[curId];
+	ndn::Name prefix("/");
+	ns3::Ptr<ns3::ndn::L3Protocol> pre_ndn = pre_node->GetObject<ns3::ndn::L3Protocol>();
+	nfd::fw::Strategy& strategy1 = pre_ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+	nfd::fw::PRFS& prfs_strategy1 = dynamic_cast<nfd::fw::PRFS&>(strategy1);
+    ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
+	nfd::fw::Strategy& strategy2 = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+	nfd::fw::PRFS& prfs_strategy2 = dynamic_cast<nfd::fw::PRFS&>(strategy2);
+	std::map<uint32_t, std::vector<int>>& pre_hop = prfs_strategy1.getHOP();
+	std::map<uint32_t, std::vector<int>>& hop = prfs_strategy2.getHOP();
+    prfs_strategy2.setHopList(nonce, pre_hop, hop, curId, false);
+}
+
+void
+PRFS::setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>& pre_hop, std::map<uint32_t, std::vector<int>>& hop, int hopId, bool isinitial) {
+    if (pre_hop.find(nonce)==pre_hop.end()) {
+        pre_hop[nonce] = std::vector<int>{};
+    }
+    hop[nonce] = pre_hop[nonce];
+	hop[nonce].push_back(hopId);
+      std::ostringstream oss;
+  for (const auto& element : hop[nonce]) {
+    oss << element << " ";
+  }
+    NFD_LOG_INFO("HopList: "<<oss.str());
+}
+
+void
+PRFS::getHopCounts(const Interest& interest,
+                           		 ns3::Ptr<ns3::Node> node)
+{
+    uint32_t nonce = interest.getNonce();
+	ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
+	ndn::Name prefix("/");
+	nfd::fw::Strategy& strategy = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+	nfd::fw::PRFS& prfs_strategy = dynamic_cast<nfd::fw::PRFS&>(strategy);
+	std::map<uint32_t, std::vector<int>>& hop = prfs_strategy.getHOP();
+	std::vector<int> hop_list = hop[nonce];
+	NS_LOG_INFO("Interest="<<interest.getName()<<" Nonce="<<nonce<<" HopCounts="<<hop_list.size());
+}
 
 }  // namespace fw
 }  // namespace nfd

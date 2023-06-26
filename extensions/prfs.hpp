@@ -26,6 +26,11 @@ public:
   void 
   afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
                            const FaceEndpoint& ingress, const Data& data) override;
+
+  void
+  afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
+                                const FaceEndpoint& ingress, const Data& data) override; 
+                                
   void
   afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
                    const shared_ptr<pit::Entry>& pitEntry) override;
@@ -44,10 +49,26 @@ public:
   double 
   caculateDR(ns3::Vector3D nodePos, ns3::Vector3D remotePos, ns3::Vector3D direction);
 
+  std::map<uint32_t, std::vector<int>>& 
+  getHOP(){
+    return m_hop;
+  }
+
+  void
+  setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>&, std::map<uint32_t, std::vector<int>>& hop, int hopId, bool isinitial);
+
+  void
+  updateHopList(int preId, int curId, const Interest& interest);
+
+  void
+  getHopCounts(const Interest& interest,
+                           		 ns3::Ptr<ns3::Node> node);
+
 private: 
 double m_Rth;
   ns3::NodeContainer m_nodes;
   uint32_t m_num;
+  std::map<uint32_t, std::vector<int>> m_hop;
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const time::milliseconds RETX_SUPPRESSION_INITIAL;

@@ -85,8 +85,6 @@ void LSF::afterReceiveInterest(const FaceEndpoint& ingress,
 		// NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
 		this->sendInterest(pitEntry, egress, interest);
 		this->updateISR(egress, interest, 0, this->m_isr);
-
-		if (ingress.face.getId() == 256+m_num) {}
 	}
 }
 
