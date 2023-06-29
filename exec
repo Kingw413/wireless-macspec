@@ -1,35 +1,35 @@
-# NS_LOG=YansWifiPhy:YansWifiChannel:WifiMacQueue:PointToPointNetDevice:ndn.NetDeviceTransport:ndn-cxx.nfd.Forwarder:ndn.AppLinkService:WifiNetDevice:WifiMac:WifiHelper:PositionAllocator:RandomDirection2dMobilityModel:ndn.L3Protocol:WIFICB:ndn.StackHelper:ndn.Consumer LD_LIBRARY_PATH=../lib/lib/ ./waf --run main > 1.log 2>&1
-export NODE_NUM=10
-NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood   >results/flood.log 2>&1
-NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-codie  > results/codie.log 2>&1
-NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs  > results/prfs.log 2>&1
-NS_LOG=ndn-cxx.nfd.Forwarder LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf  > results/lsf.log 2>&1
-python results/test.py 10
-
+# NS_LOG=YansWifiPhy:YansWifiChannel:WifiMacQueue:PointToPointNetDevice:ndn.NetDeviceTransport:ndn-cxx.nfd.Forwarder:ndn.AppLinkService:WifiNetDevice:WifiMac:WifiHelper:PositionAllocator:RandomDirection2dMobilityModel:ndn.L3Protocol:WIFICB:ndn.StackHelper:ndn.Consumer   ./waf --run main > 1.log 2>&1
 export NODE_NUM=20
-NS_LOG=ndn-cxx.nfd.FLOOD LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood   >results/flood.log 2>&1
-NS_LOG=ndn-cxx.nfd.CODIE LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-codie   >results/codie.log 2>&1
-NS_LOG=ndn-cxx.nfd.PRFS LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs  > results/prfs.log 2>&1
-NS_LOG=ndn-cxx.nfd.LSF   LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf  > results/lsf.log 2>&1
+# NS_LOG=ndn-cxx.nfd.FLOOD:ndn.Producer   ./waf --run vanet-flood   >results/flood.log 2>&1
+NS_LOG=ndn-cxx.nfd.CODIE:ndn.Producer   ./waf --run vanet-codie  > results/codie.log 2>&1
+NS_LOG=ndn-cxx.nfd.PRFS:ndn.Producer    ./waf --run vanet-prfs  > results/prfs.log 2>&1
+NS_LOG=ndn-cxx.nfd.LSF:ndn.Producer     ./waf --run vanet-lsf  > results/lsf.log 2>&1
 python results/test.py 20
 
-export NODE_NUM=30
-NS_LOG=ndn-cxx.nfd.FLOOD LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood   >results/flood.log 2>&1
-NS_LOG=ndn-cxx.nfd.CODIE LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-codie   >results/codie.log 2>&1
-NS_LOG=ndn-cxx.nfd.PRFS  LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs  > results/prfs.log 2>&1
-NS_LOG=ndn-cxx.nfd.LSF   LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf  > results/lsf.log 2>&1
-python results/test.py 30
-
 export NODE_NUM=40
-NS_LOG=ndn-cxx.nfd.FLOOD LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood   >results/flood.log 2>&1
-NS_LOG=ndn-cxx.nfd.CODIE LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-codie   >results/codie.log 2>&1
-NS_LOG=ndn-cxx.nfd.PRFS  LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs  > results/prfs.log 2>&1
-NS_LOG=ndn-cxx.nfd.LSF   LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf  > results/lsf.log 2>&1
+# NS_LOG=ndn-cxx.nfd.FLOOD:ndn.Producer    ./waf --run vanet-flood   >results/flood.log 2>&1
+NS_LOG=ndn-cxx.nfd.CODIE:ndn.Producer    ./waf --run vanet-codie   >results/codie.log 2>&1
+NS_LOG=ndn-cxx.nfd.PRFS:ndn.Producer    ./waf --run vanet-prfs  > results/prfs.log 2>&1
+NS_LOG=ndn-cxx.nfd.LSF:ndn.Producer      ./waf --run vanet-lsf  > results/lsf.log 2>&1
 python results/test.py 40
 
-export NODE_NUM=50
-NS_LOG=ndn-cxx.nfd.FLOOD LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-flood   >results/flood.log 2>&1
-NS_LOG=ndn-cxx.nfd.CODIE LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-codie   >results/codie.log 2>&1
-NS_LOG=ndn-cxx.nfd.PRFS  LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-prfs  > results/prfs.log 2>&1
-NS_LOG=ndn-cxx.nfd.LSF   LD_LIBRARY_PATH=../lib/lib/ ./waf --run vanet-lsf  > results/lsf.log 2>&1
-python results/test.py 50
+export NODE_NUM=60
+# NS_LOG=ndn-cxx.nfd.FLOOD:ndn.Producer   ./waf --run vanet-flood   >results/flood.log 2>&1
+NS_LOG=ndn-cxx.nfd.CODIE:ndn.Producer   ./waf --run vanet-codie   >results/codie.log 2>&1
+NS_LOG=ndn-cxx.nfd.PRFS:ndn.Producer    ./waf --run vanet-prfs  > results/prfs.log 2>&1
+NS_LOG=ndn-cxx.nfd.LSF:ndn.Producer     ./waf --run vanet-lsf  > results/lsf.log 2>&1
+python results/test.py 60
+
+export NODE_NUM=80
+# NS_LOG=ndn-cxx.nfd.FLOOD:ndn.Producer    ./waf --run vanet-flood   >results/flood.log 2>&1
+NS_LOG=ndn-cxx.nfd.CODIE:ndn.Producer    ./waf --run vanet-codie   >results/codie.log 2>&1
+NS_LOG=ndn-cxx.nfd.PRFS:ndn.Producer     ./waf --run vanet-prfs  > results/prfs.log 2>&1
+NS_LOG=ndn-cxx.nfd.LSF:ndn.Producer      ./waf --run vanet-lsf  > results/lsf.log 2>&1
+python results/test.py 80
+
+export NODE_NUM=100
+# NS_LOG=ndn-cxx.nfd.FLOOD:ndn.Producer   ./waf --run vanet-flood   >results/flood.log 2>&1
+NS_LOG=ndn-cxx.nfd.CODIE:ndn.Producer   ./waf --run vanet-codie   >results/codie.log 2>&1
+NS_LOG=ndn-cxx.nfd.PRFS:ndn.Producer    ./waf --run vanet-prfs  > results/prfs.log 2>&1
+NS_LOG=ndn-cxx.nfd.LSF:ndn.Producer     ./waf --run vanet-lsf  > results/lsf.log 2>&1
+python results/test.py 100
