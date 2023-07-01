@@ -54,11 +54,11 @@ int main (int argc, char *argv[])
   std::string phyMode ("OfdmRate6Mbps");
 
   NodeContainer nodes;
-  // uint32_t N = std::atoi(std::getenv("NODE_NUM"));
-  uint32_t N = 4;
-  nodes.Create (N);
-  uint32_t consumerId = 0;
-  uint32_t producerId = 3;
+  uint32_t N = std::atoi(std::getenv("NODE_NUM"));
+  // uint32_t N = 4;
+  nodes.Create (N+2);
+  uint32_t consumerId = N;
+  uint32_t producerId = N+1;
   ns3::NodeContainer consumerNode;
   ns3::NodeContainer appNodes;
   consumerNode.Add(nodes[consumerId]);
@@ -90,25 +90,33 @@ int main (int argc, char *argv[])
 
   Ns2MobilityHelper ns2Mobiity = Ns2MobilityHelper("/home/whd/ndnSIM2.8/wireless-macspec/scenarios/manhattan.tcl");
   ns2Mobiity.Install();
-
     Ptr<ListPositionAllocator> positionAlloc =
       CreateObject<ListPositionAllocator>();
   positionAlloc->Add(Vector(0, 0, 0));
-  positionAlloc->Add(Vector(50, 0, 0));
-  positionAlloc->Add(Vector(90, 0, 0));
-  positionAlloc->Add(Vector(150, 0, 0));
+  positionAlloc->Add(Vector(300, 300, 0));
 
   MobilityHelper mobility_STA;
   mobility_STA.SetPositionAllocator(positionAlloc);
   mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-  mobility_STA.Install(nodes);
+  mobility_STA.Install(appNodes);
+  //   Ptr<ListPositionAllocator> positionAlloc =
+  //     CreateObject<ListPositionAllocator>();
+  // positionAlloc->Add(Vector(0, 0, 0));
+  // positionAlloc->Add(Vector(50, 0, 0));
+  // positionAlloc->Add(Vector(90, 0, 0));
+  // positionAlloc->Add(Vector(160, 0, 0));
+
+  // MobilityHelper mobility_STA;
+  // mobility_STA.SetPositionAllocator(positionAlloc);
+  // mobility_STA.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+  // mobility_STA.Install(nodes);
 
   // Install NDN stack on all nodes
-  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallbackOld(
+  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallback(
       Ptr<Node> node, Ptr<ndn::L3Protocol> ndn, Ptr<NetDevice> device);
   ndn::StackHelper ndnHelper;
   ndnHelper.AddFaceCreateCallback(WifiNetDevice::GetTypeId(),
-                                  MakeCallback(&WifiApStaDeviceCallbackOld));
+                                  MakeCallback(&WifiApStaDeviceCallback));
   // ndnHelper.SetLinkDelayAsFaceMetric();
   ndnHelper.SetDefaultRoutes(true);
   
@@ -119,14 +127,14 @@ int main (int argc, char *argv[])
   ndn::StrategyChoiceHelper::InstallAll("/", "/localhost/nfd/strategy/prfs/%FD%01");
 
   // Installing Consumer
-  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
-  consumerHelper.SetAttribute("Frequency", DoubleValue(1.0));
-  consumerHelper.SetAttribute("Randomize", StringValue("none"));
-  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
-  // consumerHelper.SetAttribute("Frequency", StringValue("10"));
-  // consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
-  // consumerHelper.SetAttribute("q", StringValue("0"));
-  // consumerHelper.SetAttribute("s", StringValue("0.7"));
+  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
+  // consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
+  // consumerHelper.SetAttribute("Randomize", StringValue("none"));
+  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
+  consumerHelper.SetAttribute("Frequency", StringValue("10"));
+  consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
+  consumerHelper.SetAttribute("q", StringValue("0"));
+  consumerHelper.SetAttribute("s", StringValue("0.7"));
   consumerHelper.SetPrefix("/ustc");
   ApplicationContainer consumercontainer = consumerHelper.Install(consumerNode);
   std::cout << "Install consumer\n";
@@ -145,7 +153,7 @@ int main (int argc, char *argv[])
   // ndn::CsTracer::InstallAll("results/cs_prfs.log", MilliSeconds(1000));
 
 
-  Simulator::Stop(Seconds(5));
+  Simulator::Stop(Seconds(20));
   Simulator::Run();
   Simulator::Destroy();
   std::cout << "end" << std::endl;

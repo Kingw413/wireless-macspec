@@ -102,11 +102,11 @@ int main (int argc, char *argv[])
   mobility_STA.Install(appNodes);
 
   // Install NDN stack on all nodes
-  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallbackOld(
+  extern shared_ptr<::nfd::Face> WifiApStaDeviceCallback(
       Ptr<Node> node, Ptr<ndn::L3Protocol> ndn, Ptr<NetDevice> device);
   ndn::StackHelper ndnHelper;
   ndnHelper.AddFaceCreateCallback(WifiNetDevice::GetTypeId(),
-                                  MakeCallback(&WifiApStaDeviceCallbackOld));
+                                  MakeCallback(&WifiApStaDeviceCallback));
   ndnHelper.SetLinkDelayAsFaceMetric();
   ndnHelper.SetDefaultRoutes(true);
   
@@ -116,14 +116,14 @@ int main (int argc, char *argv[])
   ndn::StrategyChoiceHelper::InstallAll("/","/localhost/nfd/strategy/CODIE/%FD%01");
 
   // Installing Consumer
-  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
-  consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
-  consumerHelper.SetAttribute("Randomize", StringValue("none"));
-//   ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
-//   consumerHelper.SetAttribute("Frequency", StringValue("10"));
-//   consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
-//   consumerHelper.SetAttribute("q", StringValue("0"));
-//   consumerHelper.SetAttribute("s", StringValue("0.7"));
+  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
+  // consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
+  // consumerHelper.SetAttribute("Randomize", StringValue("none"));
+  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
+  consumerHelper.SetAttribute("Frequency", StringValue("10"));
+  consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
+  consumerHelper.SetAttribute("q", StringValue("0"));
+  consumerHelper.SetAttribute("s", StringValue("0.7"));
   consumerHelper.SetPrefix("/ustc");
   ApplicationContainer consumercontainer = consumerHelper.Install(consumerNode);
   std::cout << "Install consumer\n";
@@ -136,7 +136,7 @@ int main (int argc, char *argv[])
 
   ndn::AppDelayTracer::Install(consumerNode, "results/delay_codie.log");
 
-  Simulator::Stop(Seconds(10));
+  Simulator::Stop(Seconds(20));
   Simulator::Run();
   Simulator::Destroy();
   std::cout << "end" << std::endl;

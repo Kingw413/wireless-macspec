@@ -30,9 +30,9 @@
 #include "ns3/string.h"
 
 #if HAVE_NS3_VISUALIZER
-//#include "../../visualizer/model/visual-simulator-impl.h"
+#include "../../visualizer/model/visual-simulator-impl.h"
 //changed by whd
-#include "../../ns-3/src/visualizer/model/visual-simulator-impl.h"
+// #include "../../ns-3/src/visualizer/model/visual-simulator-impl.h"
 #endif  // HAVE_NS3_VISUALIZER
 
 #include <boost/lexical_cast.hpp>

@@ -1,6 +1,6 @@
 #include "generic-link-service-m.hpp"
 #include "ndn-wifi-net-device-transport.hpp"
-//#include "ns3/core-module.h"
+#include "ns3/core-module.h"
 #include "ns3/mobility-helper.h"
 #include "ns3/ndnSIM-module.h"
 #include "ns3/ndnSIM/NFD/daemon/face/face-common.hpp"

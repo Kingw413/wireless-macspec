@@ -122,14 +122,14 @@ int main (int argc, char *argv[])
   ndn::StrategyChoiceHelper::InstallAll("/","/localhost/nfd/strategy/bestTest/%FD%01");
 
   // Installing Consumer
-  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
-  consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
-  consumerHelper.SetAttribute("Randomize", StringValue("none"));
-  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
-  // consumerHelper.SetAttribute("Frequency", StringValue("10"));
-  // consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
-  // consumerHelper.SetAttribute("q", StringValue("0"));
-  // consumerHelper.SetAttribute("s", StringValue("0.7"));
+  // ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
+  // consumerHelper.SetAttribute("Frequency", DoubleValue(10.0));
+  // consumerHelper.SetAttribute("Randomize", StringValue("none"));
+  ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
+  consumerHelper.SetAttribute("Frequency", StringValue("10"));
+  consumerHelper.SetAttribute("NumberOfContents", StringValue("100"));
+  consumerHelper.SetAttribute("q", StringValue("0"));
+  consumerHelper.SetAttribute("s", StringValue("0.7"));
   consumerHelper.SetPrefix("/ustc");
   ApplicationContainer consumercontainer = consumerHelper.Install(consumerNode);
   std::cout << "Install consumer\n";
@@ -141,7 +141,7 @@ int main (int argc, char *argv[])
   auto producercontainer = producer.Install(nodes.Get(producerId));
   ndn::AppDelayTracer::Install(consumerNode, "results/delay_flood.log");
 
-  Simulator::Stop(Seconds(10));
+  Simulator::Stop(Seconds(20));
   Simulator::Run();
   Simulator::Destroy();
   std::cout << "end" << std::endl;
