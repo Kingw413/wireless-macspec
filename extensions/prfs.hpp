@@ -55,7 +55,7 @@ public:
   }
 
   void
-  setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>&, std::map<uint32_t, std::vector<int>>& hop, int hopId, bool isinitial);
+  setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>&, std::map<uint32_t, std::vector<int>>& hop, int hopId);
 
   void
   updateHopList(int preId, int curId, const Interest& interest);

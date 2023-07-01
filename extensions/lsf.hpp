@@ -77,10 +77,14 @@ public:
   }
 
   void
-  setHopList(uint32_t nonce, int nodeId,std::map<uint32_t, std::vector<int>>& hop,  bool isinitial);
+  setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>&, std::map<uint32_t, std::vector<int>>& hop, int hopId, int next_hopId);
 
   void
-  updateHopList(int nodeId, const Interest& interest);
+  updateHopList(nfd::face::Face& inface, nfd::face::Face& outface, const Interest& interest);
+
+  void
+  getHopCounts(const Interest& interest,
+                           		 ns3::Ptr<ns3::Node> node);
 
   void
   sendPosition();

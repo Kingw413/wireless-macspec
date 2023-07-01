@@ -249,11 +249,11 @@ PRFS::updateHopList(int preId, int curId, const Interest& interest)
 	nfd::fw::PRFS& prfs_strategy2 = dynamic_cast<nfd::fw::PRFS&>(strategy2);
 	std::map<uint32_t, std::vector<int>>& pre_hop = prfs_strategy1.getHOP();
 	std::map<uint32_t, std::vector<int>>& hop = prfs_strategy2.getHOP();
-    prfs_strategy2.setHopList(nonce, pre_hop, hop, curId, false);
+    prfs_strategy2.setHopList(nonce, pre_hop, hop, curId);
 }
 
 void
-PRFS::setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>& pre_hop, std::map<uint32_t, std::vector<int>>& hop, int hopId, bool isinitial) {
+PRFS::setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>& pre_hop, std::map<uint32_t, std::vector<int>>& hop, int hopId) {
     if (pre_hop.find(nonce)==pre_hop.end()) {
         pre_hop[nonce] = std::vector<int>{};
     }

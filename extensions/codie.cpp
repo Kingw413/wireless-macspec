@@ -43,7 +43,7 @@ CODIE::CODIE(Forwarder& forwarder, const Name& name)
 const Name&
 CODIE::getStrategyName()
 {
-  static Name strategyName("/localhost/nfd/strategy/CODIE/%FD%01");
+  static Name strategyName("/localhost/nfd/strategy/codie/%FD%01");
   return strategyName;
 }
 
@@ -51,7 +51,9 @@ void
 CODIE::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& interest,
                                          const shared_ptr<pit::Entry>& pitEntry)
 {	
-	if (!isInRegion(ingress.face)) { return ;}
+	if (!isInRegion(ingress.face)) { 
+    NFD_LOG_DEBUG("It is not in region");
+    pitEntry->deleteInRecord(ingress.face) ; return;}
 
   RetxSuppressionResult suppression = m_retxSuppression.decidePerPitEntry(*pitEntry);
   if (suppression == RetxSuppressionResult::SUPPRESS) {
@@ -63,51 +65,39 @@ CODIE::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& interes
   const fib::NextHopList& nexthops = fibEntry.getNextHops();
   auto it = nexthops.end();
  
-
   if (suppression == RetxSuppressionResult::NEW) {
-    // forward to nexthop with lowest cost except downstream
-    it = std::find_if(nexthops.begin(), nexthops.end(), [&] (const auto& nexthop) {
-      return isNextHopEligible(ingress.face, interest, nexthop, pitEntry);
-    });
+      // forward to nexthop with lowest cost except downstream
+      it = std::find_if(nexthops.begin(), nexthops.end(), [&] (const auto& nexthop) {
+        return isNextHopEligible(ingress.face, interest, nexthop, pitEntry);
+      });
 
-    // if (it == nexthops.end()) {
-    //   NFD_LOG_DEBUG(interest << " from=" << ingress << " noNextHop");
+      auto egress = FaceEndpoint(it->getFace(), 0);
+      NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
+      this->sendInterest(pitEntry, egress, interest);
 
-    //   lp::NackHeader nackHeader;
-    //   nackHeader.setReason(lp::NackReason::NO_ROUTE);
-    //   this->sendNack(pitEntry, ingress, nackHeader);
+    // CODIE的核心操作
+    std::string name = interest.getName().toUri();
+      const auto transport =nexthops.begin()->getFace().getTransport();
+      ns3::ndn::WifiNetDeviceTransport* wifiTrans = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+    if (wifiTrans == nullptr) {return; }
+      int nodeId = wifiTrans->GetNetDevice()->GetNode()->GetId();
+    int faceId = ingress.face.getId();
+    if (faceId == 256+m_num) {
+      m_h[nodeId][name] = 0;
+      return;
+    }
 
-    //   this->rejectPendingInterest(pitEntry);
-    //   return;
-    // }
+    int preId = faceId - 257 + ( faceId-257 >= nodeId );
+    m_h[nodeId][name] = m_h[preId][name] + 1;
 
-    auto egress = FaceEndpoint(it->getFace(), 0);
-    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
-    this->sendInterest(pitEntry, egress, interest);
-
-	// CODIE的核心操作
-	std::string name = interest.getName().toUri();
-    const auto transport =nexthops.begin()->getFace().getTransport();
-    ns3::ndn::WifiNetDeviceTransport* wifiTrans = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
-	if (wifiTrans == nullptr) {return; }
-    int nodeId = wifiTrans->GetNetDevice()->GetNode()->GetId();
-	int faceId = ingress.face.getId();
-	if (faceId == 256+m_num) {
-		m_h[nodeId][name] = 0;
-		return;
-	}
-
-	int preId = faceId - 257 + ( faceId-257 >= nodeId );
-	m_h[nodeId][name] = m_h[preId][name] + 1;
-
-    ns3::Ptr<ns3::Node> node = wifiTrans->GetNetDevice()->GetNode();
-	for (uint32_t j = 0; j < node->GetNApplications(); ++j) {
-		ns3::Ptr<ns3::Application> app = node->GetApplication(j);
-		if (app->GetInstanceTypeId().GetName() == "ns3::ndn::Producer") {
-			m_ddl[nodeId][name] = m_h[nodeId][name] + 1;
-			break;
-		}
-	}
+      ns3::Ptr<ns3::Node> node = wifiTrans->GetNetDevice()->GetNode();
+    for (uint32_t j = 0; j < node->GetNApplications(); ++j) {
+      ns3::Ptr<ns3::Application> app = node->GetApplication(j);
+      if (app->GetInstanceTypeId().GetName() == "ns3::ndn::Producer") {
+        m_ddl[nodeId][name] = m_h[nodeId][name] + 1;
+        break;
+      }
+    }
 
     return;
   }
@@ -120,26 +110,26 @@ CODIE::afterReceiveInterest(const FaceEndpoint& ingress, const Interest& interes
   if (it != nexthops.end()) {
     auto egress = FaceEndpoint(it->getFace(), 0);
     this->sendInterest(pitEntry, egress, interest);
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " retransmit-unused-to=" << egress);
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " retransmit-unused-to=" << egress);
     return;
   }
 
   // find an eligible upstream that is used earliest
   it = findEligibleNextHopWithEarliestOutRecord(ingress.face, interest, nexthops, pitEntry);
   if (it == nexthops.end()) {
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " retransmitNoNextHop");
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " retransmitNoNextHop");
   }
   else {
     auto egress = FaceEndpoint(it->getFace(), 0);
     this->sendInterest(pitEntry, egress, interest);
-    NFD_LOG_DEBUG(interest << " from=" << ingress << " retransmit-retry-to=" << egress);
+    NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " retransmit-retry-to=" << egress);
   }
 
   
 	// CODIE的核心操作
 	std::string name = interest.getName().toUri();
-    const auto transport =nexthops.begin()->getFace().getTransport();
-    ns3::ndn::WifiNetDeviceTransport* wifiTrans = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+  const auto transport =nexthops.begin()->getFace().getTransport();
+   ns3::ndn::WifiNetDeviceTransport* wifiTrans = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
 	if (wifiTrans == nullptr) {return; }
     int nodeId = wifiTrans->GetNetDevice()->GetNode()->GetId();
 	int faceId = ingress.face.getId();
@@ -166,13 +156,14 @@ CODIE::afterReceiveNack(const FaceEndpoint& ingress, const lp::Nack& nack,
                                      const shared_ptr<pit::Entry>& pitEntry)
 {
   this->processNack(ingress.face, nack, pitEntry);
+  NFD_LOG_DEBUG("Receive Nack from"<<ingress<<"pitEntry="<<pitEntry);
 }
 
 void
 CODIE::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
                            const FaceEndpoint& ingress, const Data& data)
 {
-	if ( !isInRegion(ingress.face) ) { return ;}
+	if ( !isInRegion(ingress.face) ) { pitEntry->deleteInRecord(ingress.face); return;}
 
 	std::string name = data.getName().toUri();
     const auto transport = ingress.face.getTransport();
@@ -192,6 +183,16 @@ CODIE::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
   this->beforeSatisfyInterest(pitEntry, ingress, data);
 
   this->sendDataToAll(pitEntry, ingress, data);
+}
+
+void
+CODIE::afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
+                               const FaceEndpoint& ingress, const Data& data)
+{
+  NFD_LOG_DEBUG("afterContentStoreHit pitEntry=" << pitEntry->getName()
+                << " in=" << ingress << " data=" << data.getName());
+
+  this->sendData(pitEntry, data, ingress);
 }
 
 bool
@@ -219,9 +220,9 @@ CODIE::isInRegion(const nfd::face::Face& face) {
     	double distance = sqrt(std::pow((nodePos.x - remotePos.x), 2) +
                            std::pow((nodePos.y - remotePos.y), 2));
     	if (distance < m_Rth) {
-      // NS_LOG_LOGIC("Face: " << hop.getFace().getId()
-      //                     << ", Node: " << remoteNode->GetId()
-      //                     << ", Distance: " << distance);
+      NS_LOG_LOGIC("Face: " << face.getId()
+                          << ", Node: " << remoteNode->GetId()
+                          << ", Distance: " << distance);
       	return (true);
     	}
   	}

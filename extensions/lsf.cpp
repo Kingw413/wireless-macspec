@@ -39,7 +39,7 @@ LSF::LSF(Forwarder& forwarder, const Name& name)
       m_retxSuppression(RETX_SUPPRESSION_INITIAL,
                         RetxSuppressionExponential::DEFAULT_MULTIPLIER,
                         RETX_SUPPRESSION_MAX)
-		{
+	{
     ParsedInstanceName parsed = parseInstanceName(name);
     if (!parsed.parameters.empty()) {
         NDN_THROW(std::invalid_argument("LSF does not accept parameters"));
@@ -82,55 +82,79 @@ void LSF::afterReceiveInterest(const FaceEndpoint& ingress,
 		const fib::NextHopList& nexthops = fibEntry.getNextHops();
 		int best_hop_index = getBestHop(nexthops, ingress, interest, pitEntry);
 		auto egress = FaceEndpoint(nexthops[best_hop_index].getFace(), 0);
-		// NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
+		NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << " to=" << egress);
 		this->sendInterest(pitEntry, egress, interest);
 		this->updateISR(egress, interest, 0, this->m_isr);
+
+	   	this->updateHopList(ingress.face, nexthops[best_hop_index].getFace(), interest);
+
+		// ndn::Interest interest2 = interest; 复制interest，在probSend()中修改Nonce值。
+
+		// this->probSend(nexthops, ingress, interest, pitEntry, best_hop_index);
 	}
 }
 
 void LSF::afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
                            const FaceEndpoint& ingress, const Data& data)
 {
-//   NFD_LOG_DEBUG("do Receive Data pitEntry=" << pitEntry->getName()
-//                 << " in=" << ingress << " data=" << data.getName());
+  NFD_LOG_DEBUG("do Receive Data pitEntry=" << pitEntry->getName()
+                << " in=" << ingress << " data=" << data.getName());
 
-
-  Interest interest = pitEntry->getInterest();
-  uint32_t nonce = interest.getNonce();
-  this->beforeSatisfyInterest(pitEntry, ingress, data);
-
-  this->sendDataToAll(pitEntry, ingress, data);
-
-  this->updateISR(ingress, interest, 1, this->m_isr);
-
-  	const auto transport =ingress.face.getTransport();
+  	Interest interest = pitEntry->getInterest();
+  	uint32_t nonce = interest.getNonce();
+  	this->beforeSatisfyInterest(pitEntry, ingress, data);
+	this->sendDataToAll(pitEntry, ingress, data);
+	this->updateISR(ingress, interest, 1, this->m_isr);
+	// const auto transport2 =  pitEntry->getInRecords().begin()->getFace().getTransport();
+	// ns3::ndn::WifiNetDeviceTransport* wifiTrans2 =  dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport2);
+	// int x = wifiTrans2->GetNetDevice()->GetNode()->GetId();
+	// NFD_LOG_INFO("Producer node="<<x);
+	const auto transport =ingress.face.getTransport();
     ns3::ndn::WifiNetDeviceTransport* wifiTrans =  dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
-	if (wifiTrans != nullptr){
-		ns3::Ptr<ns3::Node> node = wifiTrans->GetNetDevice()->GetNode();
-		for (uint32_t j = 0; j < node->GetNApplications(); ++j) {
-            ns3::Ptr<ns3::Application> app = node->GetApplication(j);
-            if (app->GetInstanceTypeId().GetName() =="ns3::ndn::ConsumerZipfMandelbrot") {
-				ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
-				ndn::Name prefix("/");
-				nfd::fw::Strategy& strategy = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
-				nfd::fw::LSF& lsf_strategy = dynamic_cast<nfd::fw::LSF&>(strategy);
-				std::map<uint32_t, std::vector<int>>& hop = lsf_strategy.getHOP();
-				std::vector<int> hop_list = hop[nonce];
-				NS_LOG_INFO("Interest="<<data.getName()<<" Nonce="<<nonce<<" HopCounts="<<hop_list.size());
-			}
-		}
-	}
+    if (wifiTrans==nullptr) {
+        for(int i=0; i<m_nodes.GetN();++i){
+            for (uint32_t j = 0; j < m_nodes[i]->GetNApplications(); ++j) {
+                ns3::Ptr<ns3::Application> app = m_nodes[i]->GetApplication(j);
+                if (app->GetInstanceTypeId().GetName() == "ns3::ndn::Producer") {
+					this->getHopCounts(interest, m_nodes[i]); }
+            }
+        }
+    }
+
+  	// const auto transport =ingress.face.getTransport();
+    // ns3::ndn::WifiNetDeviceTransport* wifiTrans =  dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+	// if (wifiTrans != nullptr){
+	// 	ns3::Ptr<ns3::Node> node = wifiTrans->GetNetDevice()->GetNode();
+	// 	for (uint32_t j = 0; j < node->GetNApplications(); ++j) {
+    //         ns3::Ptr<ns3::Application> app = node->GetApplication(j);
+    //         if (app->GetInstanceTypeId().GetName() =="ns3::ndn::ConsumerZipfMandelbrot") {
+	// 			ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
+	// 			ndn::Name prefix("/");
+	// 			nfd::fw::Strategy& strategy = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+	// 			nfd::fw::LSF& lsf_strategy = dynamic_cast<nfd::fw::LSF&>(strategy);
+	// 			std::map<uint32_t, std::vector<int>>& hop = lsf_strategy.getHOP();
+	// 			std::vector<int> hop_list = hop[nonce];
+	// 			NS_LOG_INFO("Interest="<<data.getName()<<" Nonce="<<nonce<<" HopCounts="<<hop_list.size());
+	// 		}
+	// 	}
+	// }
 }
 
 void
 LSF::afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
                                const FaceEndpoint& ingress, const Data& data)
 {
-//   NFD_LOG_DEBUG("afterContentStoreHit pitEntry=" << pitEntry->getName()
-//                 << " in=" << ingress << " data=" << data.getName());
+  NFD_LOG_DEBUG("afterContentStoreHit pitEntry=" << pitEntry->getName()
+                << " in=" << ingress << " data=" << data.getName());
 
-  this->sendData(pitEntry, data, ingress);
-  this->updateISR(ingress, pitEntry->getInterest(), 1, this->m_isr);
+  	this->sendData(pitEntry, data, ingress);
+  	this->updateISR(ingress, pitEntry->getInterest(), 1, this->m_isr);
+    
+	const auto transport =ingress.face.getTransport();
+    ns3::ndn::WifiNetDeviceTransport* wifiTrans =  dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+	if(wifiTrans==nullptr) {return;}
+	ns3::Ptr<ns3::Node>  node = wifiTrans->GetNetDevice()->GetNode();
+	this->getHopCounts(pitEntry->getInterest(), node);
 }
 
 std::vector<double>
@@ -145,7 +169,7 @@ LSF::caculateHopProb(const fib::NextHopList& nexthoplist,
 	ns3::Ptr<ns3::Channel> channel = wifiTrans->GetNetDevice()->GetChannel();
     ns3::Ptr<ns3::Node> localNode = wifiTrans->GetNetDevice()->GetNode();
 
-	this->updateHopList(localNode->GetId(), interest);
+	// this->updateHopList(localNode->GetId(), interest);
 
 	ns3::Ptr<ns3::MobilityModel> mobModel = localNode->GetObject<ns3::MobilityModel>();
 	ns3::Vector3D localPos = mobModel->GetPosition();
@@ -169,13 +193,11 @@ LSF::caculateHopProb(const fib::NextHopList& nexthoplist,
 				nfd::fw::Strategy& strategy =  ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
     			nfd::fw::LSF& lsf_strategy =  dynamic_cast<nfd::fw::LSF&>(strategy);
 				std::map<std::string, std::vector<int>> isr = lsf_strategy.getISR();
-
 				// for(auto it=isr.begin();it != isr.end();++it) {
 				// 	std::string name=it->first;
 				// 	std::vector<int> isr_num=it->second;
 				// 	NS_LOG_INFO("node="<<remoteNode->GetId()<<" ,name="<<name<<" ,Inte_num="<<isr_num[0]<<" ,Data_num="<<isr_num[1]<<" ,ISR="<< (isr_num[1]/isr_num[0]));
 				// }
-
 				ns3::Ptr<ns3::MobilityModel> mobModel2 = remoteNode->GetObject<ns3::MobilityModel>();
 				ns3::Vector3D remotePos = mobModel2->GetPosition();
 				double newDistance = sqrt(std::pow((localPos.x-remotePos.x), 2) + std::pow((localPos.y-remotePos.y), 2));
@@ -183,12 +205,10 @@ LSF::caculateHopProb(const fib::NextHopList& nexthoplist,
 				// 计算isr
 				std::string name = interest.getName().toUri();
 				if(isr.find(name) == isr.end()){
-					// NFD_LOG_DEBUG("Interest="<<name<<", ISR="<<0);
 					isr_list[i] = 0;
 				}
 				else { 
 					isr_list[i] = isr[name][1] / isr[name][0];
-					// NFD_LOG_INFO("Interest="<<interest.getName().toUri()<<", ISR="<<isr_list[i]);
 				}					
 
 				// 判断其是否为Producer，若是则概率置为1
@@ -276,9 +296,12 @@ LSF::probSend(const fib::NextHopList& nexthoplist,
             int idx = std::distance(probabilities.begin(), it);
 			if (idx == best_hop_index) {continue;}
 			auto egress = FaceEndpoint(nexthoplist[idx].getFace(), 0);
+			// (interest).setNonce(interest.getNonce()+1);
 			NFD_LOG_DEBUG("do Send Interest="<<interest << " from=" << ingress << "to=" << egress<<" prob=" << probabilities[idx]);
 			this->sendInterest(pitEntry, egress, interest);
 			this->updateISR(egress, interest, 0, m_isr);
+
+			this->updateHopList(ingress.face, egress.face, interest);
         }
     }
 }
@@ -304,46 +327,111 @@ void LSF::updateISR(const FaceEndpoint& egress,
 		// }
 }
 
-void LSF::updateHopList(int nodeId, const Interest& interest) 
-{NFD_LOG_INFO("updateHopList");
-	uint32_t nonce = interest.getNonce();
-    for (uint32_t i=0;i<m_nodes.GetN();++i) {
-		ns3::Ptr<ns3::Node> node = m_nodes[i];
-		for (uint32_t j = 0; j < node->GetNApplications(); ++j) {
-            ns3::Ptr<ns3::Application> app = node->GetApplication(j);
-            if (app->GetInstanceTypeId().GetName() =="ns3::ndn::ConsumerZipfMandelbrot") {
-				ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
-				ndn::Name prefix("/");
-				nfd::fw::Strategy& strategy = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
-				nfd::fw::LSF& lsf_strategy = dynamic_cast<nfd::fw::LSF&>(strategy);
-				std::map<uint32_t, std::vector<int>>& hop = lsf_strategy.getHOP();
-				if (hop.find(nonce) == hop.end()){
-					if (i==nodeId) {
-						lsf_strategy.setHopList(nonce, nodeId, hop, true);
-					}
-				}
-				else{
-					lsf_strategy.setHopList(nonce, nodeId, hop, false);
-				}
-				// for( auto a = lsf_strategy.getHOP().begin();a!=lsf_strategy.getHOP().end();++a){
-				// 	uint32_t  x=a->first;
-				// 	std::vector<int> hops=a->second;
-				// 	for(int i=0;i<hops.size();++i){NFD_LOG_INFO("HopList="<<hops[i]);}
-				// }
-            }
+// void LSF::updateHopList(int nodeId, const Interest& interest) 
+// {NFD_LOG_INFO("updateHopList");
+// 	uint32_t nonce = interest.getNonce();
+//     for (uint32_t i=0;i<m_nodes.GetN();++i) {
+// 		ns3::Ptr<ns3::Node> node = m_nodes[i];
+// 		for (uint32_t j = 0; j < node->GetNApplications(); ++j) {
+//             ns3::Ptr<ns3::Application> app = node->GetApplication(j);
+//             if (app->GetInstanceTypeId().GetName() =="ns3::ndn::ConsumerZipfMandelbrot") {
+// 				ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
+// 				ndn::Name prefix("/");
+// 				nfd::fw::Strategy& strategy = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+// 				nfd::fw::LSF& lsf_strategy = dynamic_cast<nfd::fw::LSF&>(strategy);
+// 				std::map<uint32_t, std::vector<int>>& hop = lsf_strategy.getHOP();
+// 				if (hop.find(nonce) == hop.end()){
+// 					if (i==nodeId) {
+// 						lsf_strategy.setHopList(nonce, nodeId, hop, true);
+// 					}
+// 				}
+// 				else{
+// 					lsf_strategy.setHopList(nonce, nodeId, hop, false);
+// 				}
+// 				// for( auto a = lsf_strategy.getHOP().begin();a!=lsf_strategy.getHOP().end();++a){
+// 				// 	uint32_t  x=a->first;
+// 				// 	std::vector<int> hops=a->second;
+// 				// 	for(int i=0;i<hops.size();++i){NFD_LOG_INFO("HopList="<<hops[i]);}
+// 				// }
+//             }
+// 		}
+// 	}
+// }
+
+// void
+// LSF::setHopList(uint32_t nonce, int nodeId, std::map<uint32_t, std::vector<int>>& hop, bool isinitial) {
+// 	if(isinitial){
+// 		hop[nonce] = {nodeId};
+// 	}
+// 	else{
+// 		hop[nonce].push_back(nodeId);
+// 	}
+// }
+
+void 
+LSF::updateHopList(nfd::face::Face& inface, nfd::face::Face& outface, const Interest& interest) 
+{   	
+	if (outface.getId()<256+m_nodes.GetN()) {
+		ns3::Ptr<ns3::Node> node;
+		const auto transport = inface.getTransport();
+		ns3::ndn::WifiNetDeviceTransport* wifiTrans = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport);
+		if(wifiTrans == nullptr) {
+			const auto transport2 = outface.getTransport();
+			ns3::ndn::WifiNetDeviceTransport* wifiTrans2 = dynamic_cast<ns3::ndn::WifiNetDeviceTransport*>(transport2);
+			node = wifiTrans2->GetNetDevice()->GetNode();
 		}
+		else{
+			node = wifiTrans->GetNetDevice()->GetNode();
+		}
+		int next_nodeId = outface.getId()-257 + (node->GetId()+257<=outface.getId());
+		uint32_t nonce = interest.getNonce();
+		ns3::Ptr<ns3::Node> next_node = m_nodes[next_nodeId];
+		ndn::Name prefix("/");
+		ns3::Ptr<ns3::ndn::L3Protocol> pre_ndn = node->GetObject<ns3::ndn::L3Protocol>();
+		nfd::fw::Strategy& strategy1 = pre_ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+		nfd::fw::LSF& lsf_strategy1 = dynamic_cast<nfd::fw::LSF&>(strategy1);
+		ns3::Ptr<ns3::ndn::L3Protocol> ndn = next_node->GetObject<ns3::ndn::L3Protocol>();
+		nfd::fw::Strategy& strategy2 = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+		nfd::fw::LSF& lsf_strategy2 = dynamic_cast<nfd::fw::LSF&>(strategy2);
+		std::map<uint32_t, std::vector<int>>& pre_hop = lsf_strategy1.getHOP();
+		std::map<uint32_t, std::vector<int>>& hop = lsf_strategy2.getHOP();
+		lsf_strategy2.setHopList(nonce, pre_hop, hop, node->GetId(), next_nodeId);
 	}
 }
 
 void
-LSF::setHopList(uint32_t nonce, int nodeId, std::map<uint32_t, std::vector<int>>& hop, bool isinitial) {
-	if(isinitial){
-		hop[nonce] = {nodeId};
-	}
-	else{
-		hop[nonce].push_back(nodeId);
-	}
+LSF::setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>& pre_hop, std::map<uint32_t, std::vector<int>>& hop, int hopId, int next_hopId) {
+    if (pre_hop.find(nonce)==pre_hop.end()) {
+        pre_hop[nonce] = {hopId};
+    }
+    hop[nonce] = pre_hop[nonce];
+	hop[nonce].push_back(next_hopId);
+      std::ostringstream oss;
+//   for (const auto& element : pre_hop[nonce]) {
+//     oss << element << " ";
+//   }
+//     NFD_LOG_INFO("HopList: "<<oss.str());
 }
+
+void
+LSF::getHopCounts(const Interest& interest,
+                           		 ns3::Ptr<ns3::Node> node)
+{
+    uint32_t nonce = interest.getNonce();
+	ns3::Ptr<ns3::ndn::L3Protocol> ndn = node->GetObject<ns3::ndn::L3Protocol>();
+	ndn::Name prefix("/");
+	nfd::fw::Strategy& strategy = ndn->getForwarder()->getStrategyChoice().findEffectiveStrategy(prefix);
+	nfd::fw::LSF& lsf_strategy = dynamic_cast<nfd::fw::LSF&>(strategy);
+	std::map<uint32_t, std::vector<int>>& hop = lsf_strategy.getHOP();
+	std::vector<int> hop_list = hop[nonce];
+	std::ostringstream oss;
+	for (const auto& element : hop_list) {
+    	oss << element << " ";
+  	}
+    NFD_LOG_INFO("HopList: "<<oss.str());
+	NS_LOG_INFO("Interest="<<interest.getName()<<" Nonce="<<nonce<<" HopCounts="<<hop_list.size()-1);
+}
+
 
 void LSF::initial(uint32_t num,
                       std::map<std::string, std::vector<int>>& isr) {

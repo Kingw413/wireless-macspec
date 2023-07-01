@@ -30,6 +30,11 @@ public:
   void
   afterReceiveData(const shared_ptr<pit::Entry>& pitEntry,
                            const FaceEndpoint& ingress, const Data& data) override;
+
+  void
+  afterContentStoreHit(const shared_ptr<pit::Entry>& pitEntry,
+                                const FaceEndpoint& ingress, const Data& data) override; 
+                                
  bool
  isInRegion(const nfd::face::Face& face);
 
