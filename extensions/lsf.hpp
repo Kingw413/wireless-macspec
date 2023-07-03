@@ -71,13 +71,13 @@ public:
     return m_isr;
   }
 
-  std::map<uint32_t, std::vector<int>>& 
+  std::map<uint32_t, std::vector<uint32_t>>& 
   getHOP(){
     return m_hop;
   }
 
   void
-  setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>&, std::map<uint32_t, std::vector<int>>& hop, int hopId, int next_hopId);
+  setHopList(uint32_t nonce, std::map<uint32_t, std::vector<int>>&, std::map<uint32_t, std::vector<uint32_t>>& hop, int hopId, int next_hopId);
 
   void
   updateHopList(nfd::face::Face& inface, nfd::face::Face& outface, const Interest& interest);
@@ -85,6 +85,9 @@ public:
   void
   getHopCounts(const Interest& interest,
                            		 ns3::Ptr<ns3::Node> node);
+
+  void
+  getHopList(const FaceEndpoint& ingress, const Interest& interest);                        
 
   void
   sendPosition();
@@ -103,7 +106,7 @@ private:
   std::vector<std::vector<ns3::Vector3D>> m_posMap;
   std::vector<std::vector<ns3::Vector3D>> m_volMap;
   std::map<std::string, std::vector<int>> m_isr;
-  std::map<uint32_t, std::vector<int>> m_hop;
+  std::map<uint32_t, std::vector<uint32_t>> m_hop;
   std::vector<std::vector<double>> m_prob;
   double m_Rth;
   double m_probtime;
